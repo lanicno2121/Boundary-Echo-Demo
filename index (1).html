@@ -1,0 +1,2208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>边界回响 · 横版肉鸽 Demo V0.16</title>
+<style>
+  :root {
+    --bg: #0a0d16;
+    --panel: rgba(13, 19, 32, .94);
+    --line: rgba(166, 190, 226, .18);
+    --text: #edf3ff;
+    --muted: #9aa9c2;
+    --accent: #7de0c3;
+    --accent2: #8cb8ff;
+    --danger: #ff777e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; min-height:100%; background: radial-gradient(circle at 50% 0%, #17243b 0%, #0a0d16 58%); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body { padding: 18px; }
+  .shell { width:min(1180px, 100%); margin:0 auto; }
+  .topline { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; }
+  .brand { display:flex; align-items:center; gap:10px; }
+  .brand-mark { width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#7de0c3,#8cb8ff);display:grid;place-items:center;color:#07111d;font-weight:900;box-shadow:0 5px 24px #7de0c333; }
+  h1 { font-size:16px; letter-spacing:.04em; margin:0; }
+  .sub { color:var(--muted); font-size:12px; margin-top:3px; }
+  .version { color:#a9b9d2; border:1px solid var(--line); border-radius:999px; padding:6px 10px; font-size:11px; letter-spacing:.08em; }
+  .stage-wrap { position:relative; border:1px solid rgba(174,204,255,.22); border-radius:18px; overflow:hidden; background:#101827; box-shadow:0 24px 70px rgba(0,0,0,.42); }
+  canvas { display:block; width:100%; height:auto; aspect-ratio:1000/560; background:#101827; image-rendering:auto; }
+  .hud { position:absolute; inset:12px 14px auto 14px; display:flex; justify-content:space-between; align-items:flex-start; pointer-events:none; gap:12px; }
+  .hud-group { display:flex; flex-wrap:wrap; gap:7px; }
+  .pill { border:1px solid rgba(191,211,246,.2); background:rgba(7,12,23,.72); backdrop-filter:blur(8px); border-radius:9px; padding:7px 10px; font-size:12px; color:#dce8fb; }
+  .pill b { color:white; font-variant-numeric:tabular-nums; }
+  .menu-screen { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:linear-gradient(90deg,rgba(6,10,18,.08),rgba(6,10,18,.58)); }
+  .menu-card { width:min(390px,86%); text-align:center; padding:26px 26px 24px; border:1px solid rgba(190,215,255,.2); border-radius:18px; background:rgba(7,13,24,.74); backdrop-filter:blur(12px); box-shadow:0 18px 50px rgba(0,0,0,.28); }
+  .eyebrow { color:var(--accent); font-size:10px; letter-spacing:.24em; font-weight:800; }
+  .menu-card h2 { font-size:clamp(26px,4vw,38px); margin:10px 0 7px; letter-spacing:.06em; }
+  .menu-card p { color:#aebbd1; font-size:13px; line-height:1.7; margin:0 0 18px; }
+  button { border:0; cursor:pointer; color:#07131b; font-weight:800; border-radius:10px; background:linear-gradient(135deg,#7de0c3,#9be9d4); padding:11px 20px; box-shadow:0 7px 24px rgba(91,214,184,.18); transition:transform .12s ease, filter .12s ease; }
+  button:hover:not(:disabled) { transform:translateY(-1px); filter:brightness(1.06); }
+  button:disabled { cursor:not-allowed; opacity:.46; box-shadow:none; filter:grayscale(.45); }
+  button:active { transform:translateY(1px); }
+  button.secondary { color:#e8f0ff; background:#24334d; border:1px solid rgba(190,215,255,.17); box-shadow:none; }
+  button.small { padding:7px 10px; font-size:11px; border-radius:8px; }
+  .menu-hint { margin-top:13px; color:#8191ab; font-size:11px; }
+  .bottom-bar { display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; padding:12px 3px 0; color:var(--muted); font-size:11px; }
+  .key { display:inline-block; padding:3px 6px; border-radius:5px; border:1px solid #53627a; background:#172237; color:#e9f1ff; font-weight:800; margin:0 2px; min-width:20px; text-align:center; }
+  .debug-panel { position:absolute; top:58px; right:12px; bottom:12px; width:min(330px,44%); overflow:auto; z-index:5; padding:13px; border:1px solid rgba(183,207,247,.22); border-radius:13px; background:var(--panel); box-shadow:0 15px 50px rgba(0,0,0,.42); display:none; }
+  .debug-panel.open { display:block; }
+  .debug-head { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; }
+  .debug-head strong { font-size:13px; }
+  .debug-note { color:#95a6c0; font-size:10px; line-height:1.55; margin-bottom:12px; }
+  .param-group { margin:12px 0 6px; padding-top:10px; border-top:1px solid var(--line); color:#8de1cc; font-size:10px; letter-spacing:.12em; font-weight:900; }
+  .param { margin:9px 0 11px; }
+  .param-top { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:5px; font-size:11px; color:#dce6f7; }
+  .param-top output { color:#9fd9cb; font-variant-numeric:tabular-nums; }
+  input[type=range] { width:100%; accent-color:#7de0c3; }
+  .debug-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
+  .pause-screen { position:absolute; inset:0; display:none; place-items:center; background:rgba(4,8,16,.58); z-index:4; }
+  .pause-screen.show { display:grid; }
+  .pause-card { text-align:center; padding:24px; border-radius:16px; border:1px solid var(--line); background:rgba(12,19,33,.94); min-width:220px; }
+  .pause-card h3 { margin:0 0 8px; }
+  .pause-card p { color:var(--muted); font-size:12px; }
+  .end-screen { position:absolute; inset:0; display:none; place-items:center; z-index:8; background:rgba(4,8,16,.76); backdrop-filter:blur(8px); }
+  .end-screen.show { display:grid; }
+  .end-card { width:min(390px,88%); text-align:center; padding:30px 26px; border:1px solid rgba(190,215,255,.22); border-radius:18px; background:rgba(12,19,33,.96); box-shadow:0 20px 60px rgba(0,0,0,.45); }
+  .end-card h2 { font-size:30px; margin:10px 0; }
+  .end-card p { color:var(--muted); font-size:13px; line-height:1.7; margin:0 0 20px; }
+  .reward-screen { position:absolute; inset:0; z-index:7; display:none; align-items:center; justify-content:center; padding:25px; background:rgba(4,9,18,.89); backdrop-filter:blur(12px); }
+  .reward-screen.show { display:flex; }
+  .reward-shell { width:min(840px,100%); padding:23px; text-align:center; background:linear-gradient(150deg,rgba(27,42,64,.97),rgba(8,14,28,.99)); border:1px solid rgba(147,191,238,.34); border-radius:18px; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+  .reward-shell h2 { font-size:27px; margin:8px 0 4px; }
+  .reward-intro { font-size:12px; margin:0 0 17px; color:#b2c3df; }
+  .reward-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  .reward-card { display:flex; flex-direction:column; min-height:208px; text-align:left; padding:18px 13px; border-radius:13px; background:linear-gradient(165deg,#253850,#111c30); border:1px solid rgba(132,197,229,.42); box-shadow:none; color:#edf7ff; cursor:pointer; }
+  .reward-card.tier2 { background:linear-gradient(165deg,#3c315b,#1a1936);border-color:rgba(203,157,255,.54); }
+  .reward-card:focus-visible { outline:3px solid #aff9df; outline-offset:2px; }
+  .reward-card:hover { transform:translateY(-3px); border-color:#92e9cc; filter:brightness(1.12); }
+  .reward-level { font-size:10px; letter-spacing:.11em; font-weight:800; color:#87e7d0; }
+  .reward-card.tier2 .reward-level {color:#d2abff;}
+  .reward-glyph { font-size:32px; text-align:center; margin:9px 0; }
+  .reward-name { font-size:17px; font-weight:850; margin:0 0 8px; }
+  .reward-desc {font-size:12px;color:#c6d7ea;line-height:1.55;flex:1;}
+  .reward-choose { margin-top:12px; text-align:center; font-size:11px; padding:7px; border-radius:7px; background:rgba(127,217,186,.14); color:#aaf1df; }
+  .reward-footnote { margin-top:14px; font-size:10px; color:#99aac7; }
+  .reroll-bar { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:12px; margin-top:16px; padding-top:14px; border-top:1px solid rgba(147,191,238,.2); }
+  .reroll-copy { text-align:left; font-size:12px; line-height:1.5; color:#d8e8fa; }
+  .reroll-copy strong { font-size:15px; color:#95f1d4; font-variant-numeric:tabular-nums; }
+  .reroll-copy small { display:block; font-size:10px; color:#99aac7; }
+  .reroll-button { min-width:185px; font-size:13px; padding:11px 16px; }
+  .reroll-bar .reroll-button:focus-visible { outline:3px solid #95f1d4; outline-offset:3px; }
+  @media (max-width:650px) { .reward-screen{padding:5px}.reward-shell{padding:12px}.reward-grid{gap:6px}.reward-card{min-height:176px;padding:11px 7px}.reward-glyph{font-size:24px}.reward-name{font-size:12px}.reward-desc{font-size:10px} }
+  .footer-note { color:#7788a3; font-size:10px; margin:10px 3px 0; line-height:1.6; }
+  @media (max-width:700px) {
+    body { padding:8px; }
+    .debug-panel { width:min(310px, calc(100% - 24px)); }
+    .hud { inset:7px; }
+    .pill { font-size:10px; padding:5px 7px; }
+    .bottom-bar { font-size:10px; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topline">
+    <div class="brand">
+      <div class="brand-mark">R</div>
+      <div>
+        <h1>横版肉鸽 · 可迭代 Demo V0.16</h1>
+        <div class="sub">先把角色控制、战斗手感与房间循环跑起来</div>
+      </div>
+    </div>
+    <div class="version">PROTOTYPE V0.16</div>
+  </div>
+
+  <div class="stage-wrap">
+    <canvas id="game" width="1000" height="560" aria-label="游戏画面"></canvas>
+
+    <div class="hud" id="hud" style="display:none">
+      <div class="hud-group">
+        <div class="pill">阶段 <b id="stageLabel">1 / 5</b></div>
+        <div class="pill">房间 <b id="roomLabel">1 / 8</b></div>
+        <div class="pill">波次 <b id="waveLabel">1 / 3</b></div>
+        <div class="pill">波次积分 <b id="wavePointsLabel">15 / 15</b></div>
+        <div class="pill">敌人 <b id="enemyLabel">0</b></div>
+        <div class="pill">状态 <b id="roomState">战斗中</b></div>
+      </div>
+      <div class="hud-group">
+        <div class="pill">生命 <b id="playerHpLabel">600 / 600</b></div>
+        <div class="pill">护盾 <b id="playerShieldLabel">0</b></div>
+        <div class="pill">卡牌 <b id="cardCountLabel">0</b></div>
+        <div class="pill">刷新 <b id="rerollHudLabel">10 / 10</b></div>
+        <div class="pill">闪避 <b id="dashLabel">2 / 2</b></div>
+        <div class="pill">普攻 <b id="attackLabel">就绪</b></div>
+        <div class="pill">光枪 <b id="lightLanceLabel">I · 就绪</b></div>
+      </div>
+    </div>
+
+    <div class="menu-screen" id="menuScreen">
+      <div class="menu-card">
+        <div class="eyebrow">SIDE-SCROLLING ROGUELITE</div>
+        <h2>边界回响</h2>
+        <p>一个房间，一个循环。<br>J 键四段近战，I 键发射双向穿透光枪；卡牌升级远程、剑气、护盾与光枪。</p>
+        <button id="startButton">开始游戏</button>
+        <div class="menu-hint">当前版本：四段连击 · I 键双向光枪 · 卡牌刷新（每阶段 10 次）</div>
+      </div>
+    </div>
+
+    <div class="pause-screen" id="pauseScreen">
+      <div class="pause-card">
+        <h3>游戏暂停</h3>
+        <p>按 ESC 继续，或重新开始本局。</p>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button class="small" id="resumeButton">继续</button>
+          <button class="small secondary" id="restartButton">重新开始</button>
+        </div>
+      </div>
+    </div>
+    <div class="end-screen" id="victoryScreen">
+      <div class="end-card">
+        <div class="eyebrow">RUN COMPLETE</div>
+        <h2>全部阶段完成</h2>
+        <p>你已完成 5 个阶段、40 个房间。</p>
+        <button id="victoryRestartButton">再玩一局</button>
+      </div>
+    </div>
+    <div class="end-screen" id="gameOverScreen">
+      <div class="end-card">
+        <div class="eyebrow">RUN ENDED</div>
+        <h2>挑战失败</h2>
+        <p>角色生命值归零，本局结束。</p>
+        <button id="gameOverRestartButton">重新开始</button>
+      </div>
+    </div>
+
+    <div class="reward-screen" id="rewardScreen" role="dialog" aria-modal="true" aria-labelledby="rewardTitle">
+      <div class="reward-shell">
+        <div class="eyebrow">ROOM CLEAR · CHOOSE ONE</div>
+        <h2 id="rewardTitle">选择一张卡牌</h2>
+        <p class="reward-intro" id="rewardDescription">本房间三波战斗已结束。三选一后解锁出口。</p>
+        <div class="reward-grid" id="rewardOptions"></div>
+        <div class="reroll-bar">
+          <div class="reroll-copy">
+            第 <span id="rerollStageLabel">1</span> 阶段可用刷新：<strong id="rerollRemainingLabel">10 / 10</strong>
+            <small>每阶段 10 次，8 个房间共享；进入下一阶段恢复</small>
+          </div>
+          <button type="button" class="secondary reroll-button" id="rerollButton">↻ 刷新三张（剩余 10 次）</button>
+        </div>
+        <div class="reward-footnote">已出现的卡牌不会被移除，仅在本房间后续刷新时抽取权重降至原来的 10% · 二级牌仍需前置 · 同组三张不重复</div>
+      </div>
+    </div>
+
+    <aside class="debug-panel" id="debugPanel">
+      <div class="debug-head">
+        <strong>运行时参数编辑台</strong>
+        <button class="small secondary" id="closeDebug">关闭</button>
+      </div>
+      <div class="debug-note">
+        只有已确认的 P 类参数开放调整。F 类参数固定；M 类参数由公式、积分和压力系统提供。
+        怪物生命使用阶段三重成长公式，积分预算与卡牌前置已接入。压力系统仍为中性占位。
+      </div>
+      <div id="paramControls"></div>
+      <div class="param-group">公式 / 系统输出 · M</div>
+      <div class="debug-note" id="formulaStatus"></div>
+      <div class="param-group">当前房间三波积分明细</div>
+      <div class="debug-note" id="waveDebugStatus"></div>
+      <div class="param-group">属性修正 · Base / Modifier / Final</div>
+      <div class="debug-note" id="modifierStatus"></div>
+      <div class="param-group">已获得卡牌 / 前置状态</div>
+      <div class="debug-note" id="cardDebugStatus"></div>
+      <div class="param-group">测试工具（不修改正式数值）</div>
+      <div class="debug-note">可快速完成当前波次，以验证三选一、前置解锁和阶段成长。测试按钮不改变积分规则。</div>
+      <button class="small secondary" id="debugClearWave">测试：清空当前波</button>
+      <button class="small secondary" id="debugNextStage" style="margin-top:6px">测试：跳到下一阶段</button>
+      <div class="debug-actions">
+        <button class="small" id="exportButton">导出配置 JSON</button>
+        <button class="small secondary" id="importButton">导入配置</button>
+        <button class="small secondary" id="resetParams">恢复默认</button>
+        <input id="importFile" type="file" accept=".json,application/json" style="display:none" />
+      </div>
+    </aside>
+  </div>
+
+  <div class="bottom-bar">
+    <div>
+      <span class="key">A</span><span class="key">D</span> 移动　
+      <span class="key">W</span> 二段跳　
+      <span class="key">S</span> 穿过平台　
+      <span class="key">K</span> 闪避　
+      <span class="key">J</span> 四段连击（连按）　
+      <span class="key">I</span> 双向穿透光枪
+    </div>
+    <div><span class="key">F1</span> 参数编辑台　<span class="key">ESC</span> 暂停</div>
+  </div>
+  <div class="footer-note">
+    V0.16：L05 攻击加速改为 +10%，T03 攻击加速Ⅱ改为 +20%；保留 V0.15 的自动射击强化、每阶段 10 次刷新与 31 种卡牌。
+    参数配置可导出为 JSON，后续版本会继续沿用这套数据结构。
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   统一数据配置中心
+   所有影响玩法的数据集中在这里；系统逻辑只读取配置，不写死数值。
+   ============================================================ */
+const DEFAULT_CONFIG = {
+  controls: {
+    left: "a", right: "d", down: "s", jump: "w", dash: "k", attack: "j", lightLance: "i"
+  },
+
+  // F：固定规则与固定基础数据，不进入普通参数编辑台。
+  player: {
+    moveSpeed: 280,
+    gravity: 1550,
+    jumpVelocity: 570,
+    secondJumpMultiplier: 0.92,
+    maxJumps: 2,
+    width: 32,
+    height: 52
+  },
+
+  // P：仅 maxCharges 开放调整；其余闪避规则固定。
+  dash: {
+    maxCharges: 2,
+    distance: 145,
+    durationMs: 170,
+    cooldownMs: 1000,
+    invulnerabilityMs: 170
+  },
+
+  // P：冷却与范围可调；攻击伤害由公式引擎提供。
+  attack: {
+    cooldownMs: 1000,
+    range: 76,
+    activeMs: 145,
+    hitHeight: 36
+  },
+
+  // F：地图生成参数固定。
+  room: {
+    width: 1700,
+    floorY: 460,
+    platformCountMin: 2,
+    platformCountMax: 4,
+    platformWidthMin: 120,
+    platformWidthMax: 210,
+    platformHeightMin: 285,
+    platformHeightMax: 390
+  },
+
+  // F：怪物碰撞体固定；生命、数量、巡逻属性由系统接口提供。
+  enemy: {
+    width: 38,
+    height: 34
+  }
+};
+
+/* V0.3 固定战斗与流程规则。
+   其中玩家生命、敌人近战伤害 / 范围 / 恢复时间为本版占位基准，
+   后续可由设计师重新定值；不进入 F1 可调参数面板。 */
+const FIXED_RULES = {
+  progression: {
+    roomsPerStage: 8,
+    totalStages: 5,
+    totalRooms: 40
+  },
+  player: {
+    maxHp: 600,
+    baseAttackDamage: 60,
+    hitInvulnerabilityMs: 500
+  },
+  // 四段连击：每次 J 触发一段；第 4 段结束后才应用原有 1 秒冷却。
+  // 四段各造成完整的“普攻伤害”（当前基础 60），暂不擅自调整卡牌倍率。
+  // 这些是连击手感参数，并不新增可调参数类别。
+  combo: {
+    hitCount: 4,
+    minIntervalMs: 190,      // 两段攻击的最短间隔
+    inputWindowMs: 950,      // 上一段之后可继续连击的时间窗口
+    damageRates: [1, 1, 1, 1]
+  },
+  // 阶段生命：BaseHP × HpRate × [1 + 0.2 × (阶段 - 1)]³
+  healthGrowth: {
+    perStageGrowth: 0.2  // 所有敌人统一的阶段成长率；同阶段房间保持不变
+  },
+  // 为尚未定义的弹道基础细节设定可玩测试基准，后续可按需求重新定义。
+  weapons: {
+    autoShotIntervalMs: 1100, autoBulletSpeed: 410, autoBulletLifeMs: 1200,
+    autoTargetRangeMeleeRatio: 3.0, // V0.15：原1.5倍提升至3倍，初始索敌范围由114px→228px
+    swordWaveSpeed: 460, swordWaveDistance: 180, swordWaveHitHeight: 40,
+    projectileRadius: 7,
+    // I 键双向光枪：每侧 1 支，伤害 = 2 套完整四段普攻（8 次单段伤害）。
+    // 距离和速度是初始试玩参数；贯穿时不降低伤害，每支对每名敌人最多命中一次。
+    lightLanceCooldownMs: 10000, lightLanceDistance: 650,
+    lightLanceSpeed: 760, lightLanceHeight: 24, lightLanceVisualLength: 60
+  },
+  enemy: {
+    chaseDurationMs: 3000,
+    stayInRangeToWindupMs: 1200,
+    windupMs: 1000,
+    meleeRange: 64,
+    meleeHeight: 48,
+    attackActiveMs: 180,   // 修复旧版缺少此字段导致攻击状态无法结束的问题
+    rangedBulletSpeed: 320,
+    rangedBulletLifeMs: 2400,
+    rangedBulletRadius: 7,
+    recoveryMs: 0,         // 结束攻击后直接回到巡逻判断
+    hitStunMs: 300,
+    retryDelayMs: 150,
+    verticalEngageRange: 90
+  }
+};
+
+/* V0.8：四类怪各自独立的 BaseHP、HpRate、两种速度倍率和固定攻击伤害。
+   原来的四类第1阶段最终HP保持 240 / 204 / 648 / 480；
+   精英巡逻速度 +35%、追击速度 +50%，两者彼此独立。
+   生命成长统一调用 FormulaEngine.enemyBaseHp，不再通过单一 melee HP × 类型生命比例推算。 */
+const ENEMY_TYPES = Object.freeze({
+  melee: Object.freeze({
+    id:"melee", name:"近战", role:"melee", baseHP:200, hpRate:1.20,
+    patrolSpeedRate:1.00, chaseSpeedRate:1.00, rangeRate:1.15,
+    attackDamage:85, attackRangeRate:1.00, color:"#e69b81",
+    heightRate:1, widthRate:1, windupRate:1
+  }),
+  ranged: Object.freeze({
+    id:"ranged", name:"远程", role:"ranged", baseHP:150, hpRate:1.36,
+    patrolSpeedRate:1.08, chaseSpeedRate:1.08, rangeRate:3.20,
+    attackDamage:70, attackRangeRate:1.00, color:"#9bacef",
+    heightRate:1, widthRate:1, windupRate:1
+  }),
+  tank: Object.freeze({
+    id:"tank", name:"肉盾", role:"melee", baseHP:450, hpRate:1.44,
+    patrolSpeedRate:0.72, chaseSpeedRate:0.72, rangeRate:1.25,
+    attackDamage:120, attackRangeRate:1.20, color:"#e3b46d",
+    heightRate:1.4, widthRate:1.45, windupRate:1
+  }),
+  elite: Object.freeze({
+    id:"elite", name:"精英", role:"melee", baseHP:300, hpRate:1.60,
+    patrolSpeedRate:1.35, chaseSpeedRate:1.50, rangeRate:1.85,
+    attackDamage:150, attackRangeRate:1.35, color:"#d68cf1",
+    heightRate:1.15, widthRate:1.12, windupRate:1, triggerRate:0.85
+  })
+});
+
+function clone(value) { return JSON.parse(JSON.stringify(value)); }
+function mergeDeep(target, source) {
+  for (const key of Object.keys(source || {})) {
+    if (source[key] && typeof source[key] === "object" && !Array.isArray(source[key])) {
+      if (!target[key] || typeof target[key] !== "object") target[key] = {};
+      mergeDeep(target[key], source[key]);
+    } else if (typeof source[key] === "number" || typeof source[key] === "string" || typeof source[key] === "boolean") {
+      target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+/* ============================================================
+   Modifier System：Base -> Modifier -> Final
+   卡牌数值统一通过 ModifierSystem 和 FormulaEngine 计算。
+   ============================================================ */
+/* ============================================================
+   一级 14 张 / 二级 17 张卡牌定义：唯一数据源。
+   prerequisite: 前置卡牌 ID；unique: 获得一次后不再出现。
+   卡牌百分比全部在各自属性乘区加算，避免同一属性复利。
+   ============================================================ */
+const CARD_DEFS = Object.freeze([
+  {id:"L01",tier:1,name:"生命强化",desc:"最大生命 +10%",glyph:"♥",mods:{maxHp:0.1}},
+  {id:"L02",tier:1,name:"闪避强化",desc:"最大闪避次数 +1",glyph:"➜",mods:{dashCharges:1}},
+  {id:"L03",tier:1,name:"闪避冷却",desc:"闪避冷却 -5%",glyph:"◷",mods:{dashCooldown:-.05}},
+  {id:"L04",tier:1,name:"伤害强化",desc:"玩家伤害 +10%",glyph:"⚔",mods:{damage:0.1}},
+  {id:"L05",tier:1,name:"攻击加速",desc:"普攻攻击速度 +10%",glyph:"ϟ",mods:{attackSpeed:.10}},
+  {id:"L06",tier:1,name:"攻击延伸",desc:"近战攻击范围 +5%",glyph:"⌁",mods:{meleeRange:.05}},
+  {id:"L07",tier:1,name:"自动射击",desc:"解锁自动索敌射击 · 每弹=近战伤害的200% · 基础索敌范围翻倍",glyph:"◎",unique:true,autoBaseRate:2.0,mods:{}},
+  {id:"L08",tier:1,name:"剑气",desc:"普攻释放无限穿透剑气 · 每道=近战伤害50%",glyph:"☄",unique:true,swordBaseRate:0.5,mods:{}},
+  {id:"L09",tier:1,name:"能量护盾",desc:"每房间获得最大生命5%的护盾",glyph:"⬡",unique:true,shieldBaseRate:0.05,mods:{}},
+  // 光枪为角色自带技能，这五张强化牌无需前置，可重复抽到；数值均为单属性加算。
+  {id:"L10",tier:1,name:"光枪增殖",desc:"I 键光枪每侧额外发射 +1 支（总数 +2）",glyph:"✣",mods:{lanceCount:1}},
+  {id:"L11",tier:1,name:"光枪增幅",desc:"光枪伤害 +20%",glyph:"✦",mods:{lanceDamage:.20}},
+  {id:"L12",tier:1,name:"光枪延展",desc:"光枪最大飞行距离 +20%",glyph:"⇔",mods:{lanceDistance:.20}},
+  {id:"L13",tier:1,name:"光枪加速",desc:"光枪飞行速度 +25%",glyph:"➤",mods:{lanceSpeed:.25}},
+  {id:"L14",tier:1,name:"光枪冷却",desc:"光枪冷却时间缩短 10%",glyph:"◷",mods:{lanceCooldown:.10}},
+  {id:"T01",tier:2,name:"生命强化Ⅱ",desc:"最大生命 +15%",requires:["L01"],glyph:"♥",mods:{maxHp:0.15}},
+  {id:"T02",tier:2,name:"伤害强化Ⅱ",desc:"玩家伤害 +15%",requires:["L04"],glyph:"⚔",mods:{damage:0.15}},
+  {id:"T03",tier:2,name:"攻击加速Ⅱ",desc:"普攻攻速 +20%",requires:["L05"],glyph:"ϟ",mods:{attackSpeed:.20}},
+  {id:"T04",tier:2,name:"攻击延伸Ⅱ",desc:"近战攻击范围 +6%",requires:["L06"],glyph:"⌁",mods:{meleeRange:.06}},
+  {id:"T05",tier:2,name:"高速弹丸",desc:"自动射击子弹弹速 +20%",requires:["L07"],glyph:"➤",mods:{autoBulletSpeed:.20}},
+  {id:"T06",tier:2,name:"远程索敌",desc:"自动射击索敌范围 +10%",requires:["L07"],glyph:"◉",mods:{autoRange:0.1}},
+  {id:"T07",tier:2,name:"弹丸强化",desc:"自动射击弹丸伤害 +15%",requires:["L07"],glyph:"✦",mods:{autoDamage:0.15}},
+  {id:"T08",tier:2,name:"快速射击",desc:"自动射击攻速 +10%",requires:["L07"],glyph:"ϟ",mods:{autoSpeed:0.1}},
+  {id:"T09",tier:2,name:"弹道扩充",desc:"自动射击每次发射弹丸 +1",requires:["L07"],glyph:"☷",mods:{autoCount:1}},
+  {id:"T10",tier:2,name:"剑气加速",desc:"剑气飞行速度 +20%",requires:["L08"],glyph:"☄",mods:{swordSpeed:.20}},
+  {id:"T11",tier:2,name:"剑气延伸",desc:"剑气飞行距离 +10%",requires:["L08"],glyph:"⇢",mods:{swordDistance:0.1}},
+  {id:"T12",tier:2,name:"剑气强化",desc:"剑气伤害 +20%",requires:["L08"],glyph:"✧",mods:{swordDamage:0.2}},
+  {id:"T13",tier:2,name:"多重剑气",desc:"每次普攻释放的剑气 +1",requires:["L08"],glyph:"⚡",mods:{swordCount:1}},
+  {id:"T14",tier:2,name:"首击免疫",desc:"每房间第一次实际受到的伤害完全免疫",requires:["L09"],glyph:"◈",unique:true,mods:{}},
+  {id:"T15",tier:2,name:"护盾强化",desc:"每房间护盾额外 +最大生命的10%",requires:["L09"],glyph:"⬡",mods:{shieldRate:0.1}},
+  {id:"T16",tier:2,name:"护盾反伤",desc:"护盾吸收伤害时反弹已吸收伤害的70%",requires:["L09"],glyph:"↩",unique:true,shieldReflectRate:0.7,mods:{}},
+  {id:"T17",tier:2,name:"反伤强化",desc:"护盾反伤比例 +10个百分点",requires:["T16"],glyph:"⤺",mods:{reflectRate:0.1}}
+]);
+const CARD_MAP = Object.fromEntries(CARD_DEFS.map(c=>[c.id,c]));
+const CARD_TIER_WEIGHTS = Object.freeze([
+  {level1:80,level2:20},{level1:70,level2:30},
+  {level1:55,level2:45},{level1:40,level2:60},{level1:30,level2:70}
+]);
+// 刷新次数为每阶段共享；已展示卡牌不是禁用，只在本次奖励中大幅降权。
+const REROLL_RULES = Object.freeze({usesPerStage:10, seenCardWeight:0.10});
+const CardSystem = {
+  counts:{}, choices:[], rewardCount:0,
+  rerollsRemaining:REROLL_RULES.usesPerStage, seenThisReward:new Set(),
+  reset() {
+    this.counts={}; this.choices=[]; this.rewardCount=0;
+    this.resetStageRerolls();
+  },
+  resetStageRerolls() {
+    this.rerollsRemaining=REROLL_RULES.usesPerStage;
+    this.seenThisReward=new Set();
+  },
+  count(id) { return this.counts[id] || 0; },
+  has(id) { return this.count(id)>0; },
+  eligible(card) {
+    return (!card.unique || !this.has(card.id)) &&
+      (card.requires||[]).every(pre=>this.has(pre));
+  },
+  sum(key) {
+    return CARD_DEFS.reduce((t,c)=>t+(c.mods[key]||0)*this.count(c.id),0);
+  },
+  beginReward(stage,rng=Math.random) {
+    // 新房间重新开始记录“本轮已经出现过”的卡，次数不恢复。
+    this.seenThisReward=new Set();
+    return this.offer(stage,rng);
+  },
+  reroll(stage,rng=Math.random) {
+    if(this.rerollsRemaining<=0 || this.choices.length===0) return null;
+    // 包括之前已经降权的卡牌：后续刷新仍保留非零抽取概率。
+    for(const card of this.choices) this.seenThisReward.add(card.id);
+    this.rerollsRemaining--;
+    return this.offer(stage,rng);
+  },
+  pickWeighted(list,rng=Math.random) {
+    // “10%”是相对抽取权重，不代表固定的10%出现概率。
+    const total=list.reduce((sum,card)=>sum+(this.seenThisReward.has(card.id)?REROLL_RULES.seenCardWeight:1),0);
+    let ticket=Math.min(0.999999999999,Math.max(0,rng()))*total;
+    for(const card of list) {
+      ticket-=this.seenThisReward.has(card.id)?REROLL_RULES.seenCardWeight:1;
+      if(ticket<0) return card;
+    }
+    return list[list.length-1];
+  },
+  offer(stage, rng=Math.random) {
+    const pool=CARD_DEFS.filter(c=>this.eligible(c));
+    const selected=[];
+    const weights=CARD_TIER_WEIGHTS[Math.min(5,Math.max(1,stage))-1];
+    for(let i=0;i<3 && selected.length<pool.length;i++) {
+      const options=pool.filter(c=>!selected.includes(c));
+      const tier1=options.filter(c=>c.tier===1);
+      const tier2=options.filter(c=>c.tier===2);
+      const roll=rng()*100;
+      const choicePool=!tier1.length?tier2:!tier2.length?tier1:(roll<weights.level1?tier1:tier2);
+      const picked=this.pickWeighted(choicePool,rng);
+      selected.push(picked);
+    }
+    this.choices=selected;
+    return selected;
+  },
+  acquire(id) {
+    const card=CARD_MAP[id];
+    if(!card || !this.eligible(card)) throw new Error('卡牌不可获取: '+id);
+    this.counts[id]=this.count(id)+1;
+    this.rewardCount++;
+    this.seenThisReward=new Set();
+    this.choices=[];
+    return card;
+  }
+};
+const ModifierSystem = {
+  list(stat) {
+    return CARD_DEFS.filter(c=>CardSystem.count(c.id)>0 && c.mods[stat]!==undefined)
+      .map(c=>({id:c.id,source:c.name,type:"percent_add",value:c.mods[stat]*CardSystem.count(c.id)}));
+  },
+  preview(stat,base,mode="percent") {
+    const modifiers=this.list(stat), added=modifiers.reduce((a,m)=>a+m.value,0);
+    const final=mode==="flat" ? base+added : base*(1+added);
+    return {base,modifiers,final};
+  }
+};
+
+
+/* ============================================================
+   Pressure System：巡逻速度 / 巡逻范围的统一计算入口
+   当前压力为 0、中性倍率为 1，保留 V0.1 行为。
+   正式压力曲线等待设计师定义。
+   ============================================================ */
+const PressureSystem = {
+  current(context = {}) { return 0; },
+  speedMultiplier(pressure) { return 1; },        // 巡逻速度专属压力入口
+  chaseSpeedMultiplier(pressure) { return 1; },   // 追击速度专属压力入口
+  rangeMultiplier(pressure) { return 1; },
+  speedFromPressure(baseSpeed, pressure) {
+    return baseSpeed * this.speedMultiplier(pressure);
+  },
+  chaseSpeedFromPressure(baseSpeed, pressure) {
+    return baseSpeed * this.chaseSpeedMultiplier(pressure);
+  },
+  rangeFromPressure(baseRange, pressure) {
+    return baseRange * this.rangeMultiplier(pressure);
+  }
+};
+
+/* ============================================================
+   Points System V0.6
+   规则：每 8 房间为一个阶段；首阶段每房间 60 点，三波 15/20/25。
+         此后每阶段总积分 +15，每波 +5；5 阶段为 60/75/90/105/120。
+   成本（×2 后用整数运算）：近战 3，远程 4，肉盾 5，精英 8。
+   约束：每波精英≤1，肉盾≤2，远程≤3，近战不限。
+   算法：随机选择满足约束且能精确花完预算的特殊怪组合，
+         剩下积分全部购买近战，避免浮点运算导致尾数错误。
+   ============================================================ */
+const POINTS_RULES = Object.freeze({
+  firstStageRoomBudget: 60,
+  roomBudgetIncreasePerStage: 15,
+  firstStageWaveBudgets: Object.freeze([15, 20, 25]),
+  perWaveIncreasePerStage: 5,
+  waveCount: 3,
+  waveTransitionSeconds: 1.15
+});
+const PointsSystem = {
+  enemyCatalog: Object.freeze([
+    Object.freeze({ id:"melee", cost:1.5, maxPerWave:Infinity }),
+    Object.freeze({ id:"ranged", cost:2, maxPerWave:3 }),
+    Object.freeze({ id:"tank", cost:2.5, maxPerWave:2 }),
+    Object.freeze({ id:"elite", cost:4, maxPerWave:1 })
+  ]),
+  cost(id) {
+    const item = this.enemyCatalog.find(e=>e.id===id);
+    if (!item) throw new Error("未知敌人类型: " + id);
+    return item.cost;
+  },
+  stageForRoom(roomNumber) {
+    return Math.floor((roomNumber - 1) / FIXED_RULES.progression.roomsPerStage) + 1;
+  },
+  roomBudget(roomNumber) {
+    return POINTS_RULES.firstStageRoomBudget +
+      (this.stageForRoom(roomNumber) - 1)*POINTS_RULES.roomBudgetIncreasePerStage;
+  },
+  waveBudget(roomNumber, waveIndex) {
+    if (!Number.isInteger(waveIndex) || waveIndex<1 || waveIndex>POINTS_RULES.waveCount)
+      throw new RangeError("波次编号必须是 1、2 或 3");
+    return POINTS_RULES.firstStageWaveBudgets[waveIndex-1] +
+      (this.stageForRoom(roomNumber)-1)*POINTS_RULES.perWaveIncreasePerStage;
+  },
+  // 生成所有能够恰好用完积分的合法组合。选择其一后将剩余积分全变为近战怪。
+  // 所有成本乘 2，运算始终在整数范围内，完全避免 1.5/2.5 的小数精度问题。
+  buildWavePlan(roomNumber, waveIndex, rng=Math.random) {
+    const budget = this.waveBudget(roomNumber, waveIndex);
+    const budgetUnits = Math.round(budget*2);
+    const candidates = [];
+    for (let elite=0;elite<=1;elite++) {
+      for (let tank=0;tank<=2;tank++) {
+        for (let ranged=0;ranged<=3;ranged++) {
+          const specialUnits = elite*8 + tank*5 + ranged*4;
+          const remainingUnits = budgetUnits - specialUnits;
+          if (remainingUnits<0 || remainingUnits%3!==0) continue;
+          const melee=remainingUnits/3;
+          candidates.push({ melee, ranged, tank, elite });
+        }
+      }
+    }
+    if (!candidates.length) throw new Error("波次积分无合法组合: " + budget);
+    // 随机合法组合；尽量让三种特殊怪出场频率有区别，但不额外改变用户预算规则。
+    const counts=candidates[Math.min(candidates.length-1,Math.floor(Math.max(0,rng())*candidates.length))];
+    const roster=[];
+    for (const id of ["elite","tank","ranged","melee"]) {
+      for (let i=0;i<counts[id];i++) roster.push(id);
+    }
+    // Fisher-Yates，让各种敌人随机分布到房间的不同位置。
+    for (let i=roster.length-1;i>0;i--) {
+      const j=Math.floor(Math.max(0,rng())*(i+1));
+      [roster[i],roster[j]]=[roster[j],roster[i]];
+    }
+    const spentUnits = counts.elite*8+counts.tank*5+counts.ranged*4+counts.melee*3;
+    if (spentUnits!==budgetUnits) throw new Error("积分分配异常");
+    return { waveIndex, budget, spent:spentUnits/2, remaining:(budgetUnits-spentUnits)/2,
+      counts, roster };
+  },
+  buildRoomPlan(roomNumber, rng=Math.random) {
+    const waves=[];
+    for (let wave=1;wave<=POINTS_RULES.waveCount;wave++) {
+      waves.push(this.buildWavePlan(roomNumber,wave,rng));
+    }
+    const total=waves.reduce((sum,w)=>sum+w.budget,0);
+    if (total!==this.roomBudget(roomNumber)) throw new Error("阶段总积分与波次预算不一致");
+    return { roomNumber, stage:this.stageForRoom(roomNumber), budget:total, waves };
+  }
+};
+
+/* ============================================================
+   Formula Engine：所有公式化属性的统一入口
+   玩家及敌人数值各由独立公式计算，光枪伤害关联完整四段普攻。
+   ============================================================ */
+const FormulaEngine = {
+  playerAttackDamage(context = {}) {
+    return ModifierSystem.preview("damage", FIXED_RULES.player.baseAttackDamage);
+  },
+  enemyBaseHp(context = {}) {
+    const stage = PointsSystem.stageForRoom(context.roomNumber || 1);
+    const type = ENEMY_TYPES[context.typeId] || ENEMY_TYPES.melee;
+    const baseHP = type.baseHP;
+    const hpRate = type.hpRate;
+    const growth = 1 + (stage - 1) * FIXED_RULES.healthGrowth.perStageGrowth;
+    const final = Math.round(baseHP * hpRate * growth * growth * growth);
+    return { baseHP, hpRate, growth, stage, final, typeId:type.id };
+  },
+  playerMaxHp() { return Math.round(ModifierSystem.preview("maxHp",FIXED_RULES.player.maxHp).final); },
+  playerMaxDashes() { return Math.max(1,Math.round(ModifierSystem.preview("dashCharges",CONFIG.dash.maxCharges,"flat").final)); },
+  dashCooldownMs() { return Math.max(100,ModifierSystem.preview("dashCooldown",CONFIG.dash.cooldownMs).final); },
+  meleeRange() { return ModifierSystem.preview("meleeRange",CONFIG.attack.range).final; },
+  meleeCooldownMs() {
+    return CONFIG.attack.cooldownMs/(1 + CardSystem.sum("attackSpeed"));
+  },
+  autoRange() { return this.meleeRange()*FIXED_RULES.weapons.autoTargetRangeMeleeRatio*(1+CardSystem.sum("autoRange")); },
+  autoBulletDamage() { return this.playerAttackDamage().final*CARD_MAP.L07.autoBaseRate*(1+CardSystem.sum("autoDamage")); },
+  autoBulletSpeed() { return FIXED_RULES.weapons.autoBulletSpeed*(1+CardSystem.sum("autoBulletSpeed")); },
+  autoShotIntervalMs() { return FIXED_RULES.weapons.autoShotIntervalMs/(1+CardSystem.sum("autoSpeed")); },
+  autoBulletCount() { return Math.max(1,Math.round(1+CardSystem.sum("autoCount"))); },
+  swordDamage() { return this.playerAttackDamage().final*CARD_MAP.L08.swordBaseRate*(1+CardSystem.sum("swordDamage")); },
+  swordSpeed() { return FIXED_RULES.weapons.swordWaveSpeed*(1+CardSystem.sum("swordSpeed")); },
+  swordDistance() { return FIXED_RULES.weapons.swordWaveDistance*(1+CardSystem.sum("swordDistance")); },
+  swordCount() { return Math.max(1,Math.round(1+CardSystem.sum("swordCount"))); },
+  shieldMax() { return CardSystem.has("L09") ? this.playerMaxHp()*(CARD_MAP.L09.shieldBaseRate+CardSystem.sum("shieldRate")) : 0; },
+  shieldReflect() { return CardSystem.has("T16") ? CARD_MAP.T16.shieldReflectRate+CardSystem.sum("reflectRate") : 0; },
+  // 单段普攻为基础结算。光枪每支的命中伤害=两套完整四段普攻，保留伤害卡加成。
+  lightLanceDamage() {
+    const twoCombos = 2 * FIXED_RULES.combo.damageRates.reduce((a,b)=>a+b,0);
+    return this.playerAttackDamage().final * twoCombos * (1+CardSystem.sum("lanceDamage"));
+  },
+  lightLanceCountPerSide() { return Math.max(1,Math.round(1+CardSystem.sum("lanceCount"))); },
+  lightLanceDistance() { return FIXED_RULES.weapons.lightLanceDistance*(1+CardSystem.sum("lanceDistance")); },
+  lightLanceSpeed() { return FIXED_RULES.weapons.lightLanceSpeed*(1+CardSystem.sum("lanceSpeed")); },
+  // 冷却缩短按百分比加算，最低保留初始冷却的 20%，避免多张卡导致负数。
+  lightLanceCooldownMs() {
+    return FIXED_RULES.weapons.lightLanceCooldownMs*Math.max(.2,1-CardSystem.sum("lanceCooldown"));
+  },
+
+  enemyPatrol(context = {}) {
+    const pressure = PressureSystem.current(context);
+    const type = ENEMY_TYPES[context.typeId] || ENEMY_TYPES.melee;
+    return {
+      pressure,
+      speed: PressureSystem.speedFromPressure(54 * type.patrolSpeedRate, pressure),
+      chaseSpeed: PressureSystem.chaseSpeedFromPressure(54 * type.chaseSpeedRate, pressure),
+      range: PressureSystem.rangeFromPressure(72 * type.rangeRate, pressure)
+    };
+  },
+  enemyAttackDamage(context = {}) {
+    // 固定类型伤害：没有阶段加成，也不套用血量成长公式。
+    const type = ENEMY_TYPES[context.typeId] || ENEMY_TYPES.melee;
+    return type.attackDamage;
+  }
+};
+
+/* ============================================================
+   动态对象池：缓存攻击特效和远程弹体对象，避免生命周期结束后残留。
+   每次发起攻击 acquire，结束 / 命中 / 打断 / 换房 release。
+   ============================================================ */
+class DynamicPool {
+  constructor(name) { this.name=name; this.free=[]; this.active=[]; this.created=0; this.reused=0; }
+  acquire(data) {
+    const reused = this.free.length > 0;
+    const obj = reused ? this.free.pop() : {};
+    if (!reused) this.created++; else this.reused++;
+    Object.assign(obj, data, { active:true });
+    this.active.push(obj);
+    return obj;
+  }
+  release(obj) {
+    if (!obj || !obj.active) return;
+    obj.active = false;
+    const i = this.active.indexOf(obj);
+    if (i >= 0) this.active.splice(i,1);
+    this.free.push(obj);
+  }
+  releaseOwner(ownerId) {
+    for (let i=this.active.length-1;i>=0;i--) {
+      if (this.active[i].ownerId === ownerId) this.release(this.active[i]);
+    }
+  }
+  clear() {
+    for (let i=this.active.length-1;i>=0;i--) this.release(this.active[i]);
+  }
+  stats() { return { active:this.active.length, free:this.free.length, created:this.created, reused:this.reused }; }
+}
+const AttackEffects = new DynamicPool("attack-effects");
+const EnemyProjectiles = new DynamicPool("enemy-projectiles");
+const PlayerProjectiles = new DynamicPool("player-projectiles");
+const SwordWaves = new DynamicPool("sword-waves");
+const LightLances = new DynamicPool("light-lances");
+
+function clearCombatPools() {
+  AttackEffects.clear();
+  EnemyProjectiles.clear();
+  PlayerProjectiles.clear();
+  SwordWaves.clear();
+  LightLances.clear();
+}
+function emitMeleeEffect(enemy) {
+  AttackEffects.acquire({
+    kind:"slash", ownerId:enemy.id,
+    x:enemy.dir>0 ? enemy.x+enemy.w : enemy.x,
+    y:enemy.y+enemy.h/2,
+    direction:enemy.dir,
+    range:enemy.meleeRange,
+    color:enemy.template.color,
+    life:FIXED_RULES.enemy.attackActiveMs/1000,
+    maxLife:FIXED_RULES.enemy.attackActiveMs/1000
+  });
+}
+function emitProjectile(enemy) {
+  const p=STATE.player;
+  const sx=enemy.x+enemy.w/2, sy=enemy.y+enemy.h*.42;
+  const px=p.x+p.w/2, py=p.y+p.h*.5;
+  const angle=Math.atan2(py-sy, px-sx);
+  EnemyProjectiles.acquire({
+    kind:"bullet", ownerId:enemy.id,
+    x:sx,y:sy,
+    vx:Math.cos(angle)*FIXED_RULES.enemy.rangedBulletSpeed,
+    vy:Math.sin(angle)*FIXED_RULES.enemy.rangedBulletSpeed,
+    radius:FIXED_RULES.enemy.rangedBulletRadius,
+    life:FIXED_RULES.enemy.rangedBulletLifeMs/1000,
+    maxLife:FIXED_RULES.enemy.rangedBulletLifeMs/1000,
+    damage:enemy.attackDamage,
+    color:enemy.template.color
+  });
+  AttackEffects.acquire({
+    kind:"flash", ownerId:enemy.id, x:sx,y:sy,
+    direction:enemy.dir, range:22,color:enemy.template.color,
+    life:.12,maxLife:.12
+  });
+}
+function tryAutoShot(dt) {
+  const p=STATE.player;
+  if(!p || !CardSystem.has("L07") || STATE.room.waveStatus!=="active") return;
+  p.autoShotCooldown=Math.max(0,p.autoShotCooldown-dt);
+  const range=FormulaEngine.autoRange();
+  const cx=p.x+p.w/2,cy=p.y+p.h/2;
+  const enemies=STATE.room.enemies
+    .map(e=>({enemy:e,distance:Math.hypot(cx-(e.x+e.w/2),cy-(e.y+e.h/2))}))
+    .filter(o=>o.distance<=range)
+    .sort((a,b)=>a.distance-b.distance);
+  if(!enemies.length || p.autoShotCooldown>0) return;
+  p.autoShotCooldown=FormulaEngine.autoShotIntervalMs()/1000;
+  const target=enemies[0].enemy;
+  const sx=cx,sy=cy;
+  const baseAngle=Math.atan2(target.y+target.h/2-sy,target.x+target.w/2-sx);
+  const count=FormulaEngine.autoBulletCount(), speed=FormulaEngine.autoBulletSpeed();
+  for(let i=0;i<count;i++) {
+    const angle=baseAngle+(i-(count-1)/2)*.085;
+    PlayerProjectiles.acquire({kind:"auto",x:sx,y:sy,
+      vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,
+      radius:FIXED_RULES.weapons.projectileRadius,
+      damage:FormulaEngine.autoBulletDamage(),
+      life:FIXED_RULES.weapons.autoBulletLifeMs/1000,
+      maxLife:FIXED_RULES.weapons.autoBulletLifeMs/1000});
+  }
+}
+function spawnSwordWaves() {
+  if(!CardSystem.has("L08")) return;
+  const p=STATE.player, count=FormulaEngine.swordCount();
+  for(let i=0;i<count;i++) {
+    const shift=(i-(count-1)/2)*10;
+    SwordWaves.acquire({
+      x:p.facing>0?p.x+p.w:p.x-18, y:p.y+p.h/2+shift,
+      vx:p.facing*FormulaEngine.swordSpeed(), direction:p.facing,
+      distanceLeft:FormulaEngine.swordDistance(), radius:12,
+      damage:FormulaEngine.swordDamage(), hitIds:new Set()
+    });
+  }
+}
+// I 键：从玩家身体中心向左、右同时投射等量光枪。
+// 每支光枪对同一敌人只生效一次，能击穿多个目标，贯穿不会降低后续命中的伤害。
+function tryLightLance() {
+  const p=STATE.player;
+  if(!p || STATE.mode!=="playing" || p.lightLanceCooldown>0) return;
+  const perSide=FormulaEngine.lightLanceCountPerSide();
+  const damage=FormulaEngine.lightLanceDamage();
+  const speed=FormulaEngine.lightLanceSpeed();
+  const distance=FormulaEngine.lightLanceDistance();
+  const cx=p.x+p.w/2, cy=p.y+p.h*.48;
+  for(const direction of [-1,1]) {
+    for(let i=0;i<perSide;i++) {
+      const laneOffset=(i-(perSide-1)/2)*26;
+      LightLances.acquire({
+        kind:"light-lance", x:cx, y:cy+laneOffset,
+        direction, vx:direction*speed,
+        distanceLeft:distance, totalDistance:distance,
+        damage, hitIds:new Set(),
+        visualLength:FIXED_RULES.weapons.lightLanceVisualLength
+      });
+    }
+  }
+  p.lightLanceCooldown=FormulaEngine.lightLanceCooldownMs()/1000;
+  burst(cx,cy,16,"#adf1ff");
+  showMessage(`光枪齐射 · 双向 ${perSide*2} 支 · 每支 ${damage.toFixed(1)} 伤害`);
+  updateHud();
+}
+function updateLightLances(dt) {
+  for(let i=LightLances.active.length-1;i>=0;i--) {
+    const lance=LightLances.active[i];
+    const startX=lance.x;
+    const displacement=lance.direction*Math.min(lance.distanceLeft,Math.abs(lance.vx)*dt);
+    lance.x+=displacement;
+    lance.distanceLeft-=Math.abs(displacement);
+    // 使用移动前后的扫掠碰撞盒，防止高速飞行时直接穿过窄怪物却漏判。
+    const left=Math.min(startX,lance.x)-12;
+    const right=Math.max(startX,lance.x)+12;
+    const hitbox={x:left,y:lance.y-FIXED_RULES.weapons.lightLanceHeight/2,
+      w:right-left,h:FIXED_RULES.weapons.lightLanceHeight};
+    for(const e of STATE.room.enemies) {
+      if(e.hp>0 && !lance.hitIds.has(e.id) && rectsOverlap(hitbox,e)) {
+        lance.hitIds.add(e.id);
+        interruptEnemy(e,lance.damage);
+      }
+    }
+    if(lance.distanceLeft<=.001 || lance.x<0 || lance.x>STATE.room.width) {
+      LightLances.release(lance);
+    }
+  }
+  removeDeadEnemies();
+}
+function updatePlayerWeapons(dt) {
+  tryAutoShot(dt);
+  updateLightLances(dt);
+  for(let i=PlayerProjectiles.active.length-1;i>=0;i--) {
+    const b=PlayerProjectiles.active[i];
+    b.life-=dt;b.x+=b.vx*dt;b.y+=b.vy*dt;
+    if(b.life<=0 || b.x<0 || b.x>STATE.room.width || b.y<0 || b.y>H) {
+      PlayerProjectiles.release(b);continue;
+    }
+    const enemy=STATE.room.enemies.find(e=>circleHitsRect(b.x,b.y,b.radius,e));
+    if(enemy) {
+      interruptEnemy(enemy,b.damage);
+      PlayerProjectiles.release(b);
+      removeDeadEnemies();
+    }
+  }
+  for(let i=SwordWaves.active.length-1;i>=0;i--) {
+    const wave=SwordWaves.active[i], dx=wave.vx*dt;
+    wave.x+=dx;wave.distanceLeft-=Math.abs(dx);
+    if(wave.distanceLeft<=0 || wave.x<0 || wave.x>STATE.room.width) {
+      SwordWaves.release(wave);continue;
+    }
+    // 穿透所有敌人，但每道剑气对同一敌人只生效一次。
+    const hitbox={x:wave.x-13,y:wave.y-FIXED_RULES.weapons.swordWaveHitHeight/2,
+      w:26,h:FIXED_RULES.weapons.swordWaveHitHeight};
+    for(const e of STATE.room.enemies) {
+      if(!wave.hitIds.has(e.id) && rectsOverlap(hitbox,e)) {
+        wave.hitIds.add(e.id);
+        interruptEnemy(e,wave.damage);
+      }
+    }
+    removeDeadEnemies();
+  }
+}
+function circleHitsRect(x,y,r,rect) {
+  const nx=Math.max(rect.x,Math.min(x,rect.x+rect.w));
+  const ny=Math.max(rect.y,Math.min(y,rect.y+rect.h));
+  return (x-nx)**2+(y-ny)**2<=r*r;
+}
+function removeDeadEnemies() {
+  STATE.room.enemies=STATE.room.enemies.filter(e=>{
+    if(e.hp>0)return true;
+    AttackEffects.releaseOwner(e.id);
+    EnemyProjectiles.releaseOwner(e.id);
+    burst(e.x+e.w/2,e.y+e.h/2,15,"#ff9d88");
+    return false;
+  });
+}
+function drawPlayerWeapons() {
+  for(const lance of LightLances.active) {
+    const x=lance.x-STATE.cameraX, y=lance.y, d=lance.direction;
+    const tail=x-d*lance.visualLength;
+    ctx.save();
+    // 光枪：霓虹外晕、发光枪身和尖锐枪头，方向相反的两支对称绘制。
+    ctx.shadowBlur=23;ctx.shadowColor="#6ce8ff";
+    const glow=ctx.createLinearGradient(tail,y,x+d*10,y);
+    glow.addColorStop(0,"rgba(82,149,255,.05)");
+    glow.addColorStop(.56,"rgba(72,230,255,.55)");
+    glow.addColorStop(1,"rgba(235,255,255,1)");
+    ctx.fillStyle=glow;
+    ctx.beginPath();
+    ctx.moveTo(tail,y);ctx.lineTo(x-d*17,y-8);
+    ctx.lineTo(x+d*15,y);ctx.lineTo(x-d*17,y+8);
+    ctx.closePath();ctx.fill();
+    ctx.shadowBlur=9;ctx.strokeStyle="#ecffff";ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(tail+d*14,y);ctx.lineTo(x+d*13,y);ctx.stroke();
+    ctx.restore();
+  }
+  for(const b of PlayerProjectiles.active) {
+    ctx.save();ctx.fillStyle="#9af2ff";ctx.shadowColor="#a5fcff";ctx.shadowBlur=15;
+    ctx.beginPath();ctx.arc(b.x-STATE.cameraX,b.y,b.radius,0,2*Math.PI);ctx.fill();ctx.restore();
+  }
+  for(const b of SwordWaves.active) {
+    ctx.save();ctx.strokeStyle="#a7f7cf";ctx.lineWidth=6;ctx.shadowColor="#77ffd2";ctx.shadowBlur=18;
+    ctx.beginPath();ctx.arc(b.x-STATE.cameraX,b.y,19,-1.08,1.08,b.direction<0);ctx.stroke();ctx.restore();
+  }
+}
+function updateCombatPools(dt) {
+  for (let i=AttackEffects.active.length-1;i>=0;i--) {
+    const fx=AttackEffects.active[i];
+    fx.life-=dt;
+    if (fx.life<=0) AttackEffects.release(fx);
+  }
+  for (let i=EnemyProjectiles.active.length-1;i>=0;i--) {
+    const b=EnemyProjectiles.active[i];
+    b.life-=dt;
+    b.x+=b.vx*dt;
+    b.y+=b.vy*dt;
+    if (b.life<=0 || b.x<0 || b.x>STATE.room.width || b.y<0 || b.y>H) {
+      EnemyProjectiles.release(b); continue;
+    }
+    const p=STATE.player;
+    const nearX=Math.max(p.x,Math.min(b.x,p.x+p.w));
+    const nearY=Math.max(p.y,Math.min(b.y,p.y+p.h));
+    if ((b.x-nearX)**2+(b.y-nearY)**2 <= b.radius*b.radius) {
+      applyEnemyDamageToPlayer(b.damage,b.ownerId);
+      EnemyProjectiles.release(b);
+      if (STATE.mode!=="playing") return;
+    }
+  }
+}
+function drawCombatPools() {
+  for (const fx of AttackEffects.active) {
+    const alpha=Math.max(0,fx.life/fx.maxLife);
+    ctx.save(); ctx.globalAlpha=alpha;
+    ctx.shadowColor=fx.color; ctx.shadowBlur=11;
+    ctx.strokeStyle=fx.color; ctx.lineWidth=5;
+    ctx.beginPath();
+    const sx=fx.x-STATE.cameraX;
+    if(fx.kind==="slash") {
+      ctx.moveTo(sx,fx.y-20);
+      ctx.quadraticCurveTo(sx+fx.direction*fx.range*.60,fx.y-30,sx+fx.direction*fx.range,fx.y+13);
+    } else {
+      ctx.arc(sx,fx.y,15*(1-alpha)+6,0,Math.PI*2);
+    }
+    ctx.stroke(); ctx.restore();
+  }
+  for (const b of EnemyProjectiles.active) {
+    ctx.save();
+    ctx.fillStyle=b.color; ctx.shadowColor=b.color;ctx.shadowBlur=14;
+    ctx.beginPath();ctx.arc(b.x-STATE.cameraX,b.y,b.radius,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;ctx.strokeStyle="#fff0ef";ctx.lineWidth=1.5;ctx.stroke();
+    ctx.restore();
+  }
+}
+
+let CONFIG = clone(DEFAULT_CONFIG);
+try {
+  const saved = localStorage.getItem("boundaryEchoConfigV06") || localStorage.getItem("boundaryEchoConfigV05") || localStorage.getItem("boundaryEchoConfigV04");
+  if (saved) {
+    const legacy=JSON.parse(saved);
+    for (const path of ["dash.maxCharges","attack.cooldownMs","attack.range"]) {
+      const keys=path.split(".");
+      const group=keys[0],field=keys[1];
+      if (legacy[group] && typeof legacy[group][field]==="number") CONFIG[group][field]=legacy[group][field];
+    }
+  }
+} catch (_) {}
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const W = canvas.width, H = canvas.height;
+const menuScreen = document.getElementById("menuScreen");
+const hud = document.getElementById("hud");
+const debugPanel = document.getElementById("debugPanel");
+const pauseScreen = document.getElementById("pauseScreen");
+
+const STATE = {
+  mode: "menu",
+  roomNumber: 1,
+  room: null,
+  player: null,
+  cameraX: 0,
+  keys: new Set(),
+  particles: [],
+  lastTime: 0,
+  menuTime: 0,
+  message: "",
+  messageTimer: 0,
+  result: null
+};
+
+function prepareRoomReward() {
+  if(STATE.room.rewardGiven || STATE.mode!=="playing") return;
+  const room=STATE.room;
+  room.rewardGiven=true;
+  room.waveStatus="reward";
+  STATE.mode="reward";
+  STATE.keys.clear();
+  debugPanel.classList.remove("open");
+  CardSystem.beginReward(getStageNumber());
+  renderRewardChoices();
+  document.getElementById("rewardScreen").classList.add("show");
+  updateHud();
+}
+function renderRewardChoices() {
+  const grid=document.getElementById("rewardOptions");
+  grid.replaceChildren();
+  document.getElementById("rewardDescription").textContent=
+    `第 ${STATE.roomNumber} / 40 房间完成 · 选择 1 张卡牌，或使用本阶段刷新次数。`;
+  for (const card of CardSystem.choices) {
+    const btn=document.createElement("button");
+    btn.className="reward-card "+(card.tier===2?"tier2":"tier1");
+    const lv=document.createElement("div");lv.className="reward-level";
+    lv.textContent=card.tier===1?"LEVEL 1 / 一级":"LEVEL 2 / 二级";
+    const glyph=document.createElement("div");glyph.className="reward-glyph";glyph.textContent=card.glyph;
+    const title=document.createElement("div");title.className="reward-name";title.textContent=card.name;
+    const detail=document.createElement("div");detail.className="reward-desc";detail.textContent=card.desc;
+    const pick=document.createElement("div");pick.className="reward-choose";pick.textContent="选择此卡";
+    btn.append(lv,glyph,title,detail,pick);
+    btn.addEventListener("click",()=>selectReward(card.id));
+    grid.appendChild(btn);
+  }
+  const button=document.getElementById("rerollButton");
+  const remaining=CardSystem.rerollsRemaining;
+  document.getElementById("rerollStageLabel").textContent=getStageNumber();
+  document.getElementById("rerollRemainingLabel").textContent=`${remaining} / ${REROLL_RULES.usesPerStage}`;
+  button.textContent=remaining>0?`↻ 刷新三张（剩余 ${remaining} 次）`:"本阶段刷新已用完";
+  button.disabled=remaining===0;
+}
+function rerollReward() {
+  if(STATE.mode!=="reward" || CardSystem.rerollsRemaining<=0) return;
+  if(!CardSystem.reroll(getStageNumber())) return;
+  renderRewardChoices();
+  updateHud();
+}
+function selectReward(id) {
+  if(STATE.mode!=="reward" || !CardSystem.choices.some(c=>c.id===id)) return;
+  const oldMax=FormulaEngine.playerMaxHp();
+  const oldDashes=FormulaEngine.playerMaxDashes();
+  const card=CardSystem.acquire(id);
+  const p=STATE.player;
+  const newMax=FormulaEngine.playerMaxHp();
+  // 生命强化提高生命上限时按增量补足新获得的生命，保持原本受伤量。
+  if(newMax>oldMax) p.hp=Math.min(newMax,p.hp+(newMax-oldMax));
+  p.maxHp=newMax;
+  const newDashes=FormulaEngine.playerMaxDashes();
+  if(newDashes>oldDashes) p.dashCharges+=newDashes-oldDashes;
+  p.dashCharges=Math.min(p.dashCharges,newDashes);
+  if(id==="L09") p.shield=FormulaEngine.shieldMax();
+  if(id==="T15") p.shield=Math.min(FormulaEngine.shieldMax(),p.shield+(newMax*card.mods.shieldRate));
+  if(id==="T14") p.firstHitImmunityAvailable=true;
+  STATE.mode="playing";
+  STATE.room.waveStatus="cleared";
+  document.getElementById("rewardScreen").classList.remove("show");
+  showMessage(`获得卡牌：${card.name} · 出口解锁`);
+  if(STATE.roomNumber>=FIXED_RULES.progression.totalRooms) {
+    finishRun("victory");
+  }
+  updateHud();
+  refreshArchitectureStatus();
+}
+function refreshRoomDefenses() {
+  if(!STATE.player) return;
+  const p=STATE.player;
+  p.maxHp=FormulaEngine.playerMaxHp();
+  p.shield=FormulaEngine.shieldMax();
+  p.firstHitImmunityAvailable=CardSystem.has("T14");
+  p.dashCharges=FormulaEngine.playerMaxDashes();
+  p.dashCooldown=0;
+  p.dashTimer=0;
+  p.attackCooldown=0;
+  p.attackTimer=0;
+  p.comboIndex=0;
+  p.comboInputWindow=0;
+  p.comboHitLock=0;
+  p.comboQueued=false;
+  p.attackStep=0;
+  p.autoShotCooldown=0;
+}
+function makePlayer() {
+  return {
+    x: 105, y: 0, vx: 0, vy: 0,
+    w: CONFIG.player.width, h: CONFIG.player.height,
+    hp: FIXED_RULES.player.maxHp, maxHp: FIXED_RULES.player.maxHp,
+    shield:0,firstHitImmunityAvailable:false,autoShotCooldown:0,lightLanceCooldown:0,
+    facing: 1, onGround: false, jumpCount: 0,
+    ignorePlatforms: 0,
+    dashCharges: CONFIG.dash.maxCharges,
+    dashTimer: 0, dashCooldown: 0, invulnTimer: 0,
+    attackCooldown: 0, attackTimer: 0,
+    comboIndex:0, comboInputWindow:0, comboHitLock:0, comboQueued:false, attackStep:0,
+    attackSerial: 0, hurtFlash: 0
+  };
+}
+
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min);
+}
+function randomInt(min, max) {
+  min = Math.ceil(min); max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/* ============================================================
+   房间生成模块
+   地图与敌人分别生成，后续可独立替换生成规则。
+   ============================================================ */
+function makeEnemy(room, typeId, index, total) {
+  const template=ENEMY_TYPES[typeId];
+  const patrol=FormulaEngine.enemyPatrol({ roomNumber:room.number, typeId });
+  const enemyHp=FormulaEngine.enemyBaseHp({ roomNumber:room.number, typeId }).final;
+  const width=CONFIG.enemy.width*template.widthRate;
+  const height=CONFIG.enemy.height*template.heightRate;
+  // 横向分布，优先避免出生在玩家身边；人数较多时允许小范围重叠。
+  const minX=245, maxX=room.width-155;
+  const slotX=minX+(maxX-minX)*((index+.5)/Math.max(1,total));
+  let x=Math.min(maxX-width,Math.max(minX,slotX+randomBetween(-13,13)));
+  const p=STATE.player;
+  if (p && Math.abs(x-p.x)<115) x=Math.min(maxX-width,Math.max(minX,x+ (x<p.x ? -120 : 120)));
+  return {
+    id:`${room.number}-${room.waveIndex}-${index}-${Math.floor(Math.random()*10000000)}`,
+    typeId,template,x,y:room.floorY-height,w:width,h:height,
+    hp:enemyHp,maxHp:enemyHp,
+    attackDamage:FormulaEngine.enemyAttackDamage({typeId}),
+    meleeRange:FIXED_RULES.enemy.meleeRange*template.attackRangeRate,
+    patrolSpeed:patrol.speed,chaseSpeed:patrol.chaseSpeed,patrolRange:patrol.range,
+    dir:Math.random()<.5 ? -1 : 1,
+    left:Math.max(0,x-patrol.range),
+    right:Math.min(room.width-width,x+patrol.range),
+    state:"patrol",stateTimer:0,chaseTimer:0,rangeTimer:0,
+    windupTimer:0,attackTimer:0,attackCooldown:0,hitStunTimer:0,
+    bob:Math.random()*Math.PI*2,flash:0
+  };
+}
+
+function spawnWave(room, waveIndex) {
+  if (waveIndex<1 || waveIndex>POINTS_RULES.waveCount) throw new RangeError("无效波次");
+  clearCombatPools();
+  room.waveIndex=waveIndex;
+  room.waveStatus="active";
+  room.waveTransition=0;
+  const plan=room.pointsPlan.waves[waveIndex-1];
+  room.enemies=plan.roster.map((typeId,index)=>makeEnemy(room,typeId,index,plan.roster.length));
+  showMessage(`第 ${waveIndex} / ${POINTS_RULES.waveCount} 波 · ${plan.spent} 积分`);
+  updateHud();
+}
+
+function generateRoom(roomNumber) {
+  const roomW = Math.max(1100, CONFIG.room.width);
+  const floorY = CONFIG.room.floorY;
+  const platforms = [];
+  const pMin = Math.max(0, Math.min(CONFIG.room.platformCountMin, CONFIG.room.platformCountMax));
+  const pMax = Math.max(pMin, CONFIG.room.platformCountMax);
+  const platformCount = randomInt(pMin, pMax);
+  for (let i = 0; i < platformCount; i++) {
+    const width = randomBetween(CONFIG.room.platformWidthMin, CONFIG.room.platformWidthMax);
+    const x = randomBetween(260, roomW - 330);
+    const y = randomBetween(CONFIG.room.platformHeightMin, Math.min(CONFIG.room.platformHeightMax, floorY - 35));
+    platforms.push({ x, y, w: width, h: 15 });
+  }
+  const pointsPlan = PointsSystem.buildRoomPlan(roomNumber);
+  const room = {
+    number:roomNumber,
+    width:roomW, floorY, platforms, enemies:[],
+    pointsPlan, pointsBudget:pointsPlan.budget,
+    waveIndex:0, waveStatus:"pending", waveTransition:0,rewardGiven:false,
+    doorX:roomW - 95,
+    palette:(roomNumber-1)%4
+  };
+  spawnWave(room,1);
+  return room;
+}
+
+function getStageNumber(roomNumber = STATE.roomNumber) {
+  return Math.floor((roomNumber - 1) / FIXED_RULES.progression.roomsPerStage) + 1;
+}
+function getRoomInStage(roomNumber = STATE.roomNumber) {
+  return ((roomNumber - 1) % FIXED_RULES.progression.roomsPerStage) + 1;
+}
+function finishRun(result) {
+  clearCombatPools();
+  STATE.result = result;
+  STATE.mode = result;
+  STATE.keys.clear();
+  pauseScreen.classList.remove("show");
+  document.getElementById("victoryScreen").classList.toggle("show", result === "victory");
+  document.getElementById("gameOverScreen").classList.toggle("show", result === "gameover");
+}
+function enterNextRoom() {
+  clearCombatPools();
+  const previousStage = getStageNumber(STATE.roomNumber);
+  STATE.roomNumber += 1;
+  const nextStage = getStageNumber(STATE.roomNumber);
+  STATE.room = generateRoom(STATE.roomNumber);
+  const p = STATE.player;
+  p.x = 105; p.y = STATE.room.floorY - p.h;
+  p.vx = 0; p.vy = 0; p.onGround = true; p.jumpCount = 0;
+  refreshRoomDefenses();
+  STATE.cameraX = 0;
+  if (nextStage !== previousStage) {
+    CardSystem.resetStageRerolls();
+    showMessage(`进入第 ${nextStage} 阶段 · 刷新次数已恢复为 ${REROLL_RULES.usesPerStage}`);
+  } else {
+    showMessage(`进入第 ${nextStage} 阶段 · 房间 ${getRoomInStage()}/8`);
+  }
+  updateHud();
+}
+
+function startGame() {
+  clearCombatPools();
+  CardSystem.reset();
+  document.getElementById("rewardScreen").classList.remove("show");
+  STATE.mode = "playing";
+  STATE.result = null;
+  document.getElementById("victoryScreen").classList.remove("show");
+  document.getElementById("gameOverScreen").classList.remove("show");
+  STATE.roomNumber = 1;
+  STATE.player = null;
+  STATE.room = generateRoom(1);
+  STATE.player = makePlayer();
+  STATE.player.y = STATE.room.floorY - STATE.player.h;
+  STATE.player.onGround = true;
+  refreshRoomDefenses();
+  STATE.cameraX = 0;
+  STATE.particles = [];
+  STATE.keys.clear();
+  menuScreen.style.display = "none";
+  pauseScreen.classList.remove("show");
+  hud.style.display = "flex";
+  updateHud();
+}
+
+/* ============================================================
+   玩家移动 / 跳跃 / 闪避模块
+   ============================================================ */
+function tryJump() {
+  const p = STATE.player;
+  if (!p || STATE.mode !== "playing") return;
+  if (p.jumpCount < CONFIG.player.maxJumps) {
+    p.vy = -CONFIG.player.jumpVelocity * (p.jumpCount === 0 ? 1 : CONFIG.player.secondJumpMultiplier);
+    p.jumpCount += 1;
+    p.onGround = false;
+    burst(p.x + p.w/2, p.y + p.h, 5, "#a6d8ff");
+  }
+}
+
+function tryDash() {
+  const p = STATE.player;
+  if (!p || STATE.mode !== "playing" || p.dashCharges <= 0 || p.dashTimer > 0) return;
+  const duration = Math.max(50, CONFIG.dash.durationMs);
+  p.dashCharges -= 1;
+  p.dashTimer = duration / 1000;
+  p.invulnTimer = Math.max(p.invulnTimer, CONFIG.dash.invulnerabilityMs / 1000);
+  p.vy = 0;
+  if (p.dashCharges === 0) p.dashCooldown = FormulaEngine.dashCooldownMs() / 1000;
+  burst(p.x + p.w/2, p.y + p.h/2, 8, "#80e8d0");
+}
+
+function interruptEnemy(enemy, damage) {
+  AttackEffects.releaseOwner(enemy.id);
+  EnemyProjectiles.releaseOwner(enemy.id);
+  enemy.hp -= damage;
+  enemy.flash = .16;
+  enemy.state = "hitstun";
+  enemy.hitStunTimer = FIXED_RULES.enemy.hitStunMs / 1000;
+  enemy.chaseTimer = 0;
+  enemy.rangeTimer = 0;
+  enemy.windupTimer = 0;
+  enemy.attackTimer = 0;
+  enemy.attackCooldown = FIXED_RULES.enemy.retryDelayMs / 1000;
+  burst(enemy.x + enemy.w/2, enemy.y + enemy.h/2, 8, "#fff0d2");
+}
+
+function endPlayerCombo(player) {
+  player.comboIndex=0;
+  player.comboInputWindow=0;
+  player.comboHitLock=0;
+  player.comboQueued=false;
+  // 保留旧版 1 秒普攻 CD，攻速卡按统一的 CD 公式缩短它。
+  player.attackCooldown=FormulaEngine.meleeCooldownMs()/1000;
+}
+
+function tryAttack() {
+  const p=STATE.player;
+  if(!p || STATE.mode!=="playing" || p.attackCooldown>0) return;
+  if(p.comboHitLock>0) {
+    // 快速按键时缓存下一次输入，避免连击被按键时序吞掉。
+    if(p.comboIndex>0 && p.comboIndex<FIXED_RULES.combo.hitCount) p.comboQueued=true;
+    return;
+  }
+
+  const step=p.comboIndex+1;
+  if(step>FIXED_RULES.combo.hitCount) return;
+  p.comboIndex=step;
+  p.attackStep=step;
+  p.comboInputWindow=FIXED_RULES.combo.inputWindowMs/1000;
+  p.comboHitLock=FIXED_RULES.combo.minIntervalMs/1000 /
+    (1+CardSystem.sum("attackSpeed"));
+  p.attackTimer=CONFIG.attack.activeMs/1000;
+  p.attackSerial++;
+
+  // 每段普攻均使用统一的 Base -> Modifier -> Final 伤害计算。
+  const rate=FIXED_RULES.combo.damageRates[step-1] || 1;
+  const damage=FormulaEngine.playerAttackDamage().final * rate;
+  const meleeRange=FormulaEngine.meleeRange();
+  const hit={
+    x:p.facing>0?p.x+p.w-1:p.x-meleeRange+1,
+    y:p.y+(p.h-CONFIG.attack.hitHeight)/2,
+    w:meleeRange, h:CONFIG.attack.hitHeight
+  };
+  let hits=0;
+  for(const enemy of STATE.room.enemies) {
+    if(rectsOverlap(hit,enemy)) {
+      interruptEnemy(enemy,damage);
+      hits++;
+    }
+  }
+  removeDeadEnemies();
+  spawnSwordWaves();
+  if(hits) showMessage(`连击 ${step}/4 · ${damage.toFixed(1)} 伤害 · 受击打断`);
+  else showMessage(`连击 ${step}/4`);
+
+  if(step===FIXED_RULES.combo.hitCount) {
+    endPlayerCombo(p);
+  }
+  updateHud();
+}
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function updatePlayer(dt) {
+  const p = STATE.player;
+  const left = STATE.keys.has(CONFIG.controls.left);
+  const right = STATE.keys.has(CONFIG.controls.right);
+  const down = STATE.keys.has(CONFIG.controls.down);
+  const axis = (right ? 1 : 0) - (left ? 1 : 0);
+
+  p.ignorePlatforms = Math.max(0, p.ignorePlatforms - dt);
+  p.attackCooldown = Math.max(0, p.attackCooldown - dt);
+  p.lightLanceCooldown = Math.max(0, p.lightLanceCooldown - dt);
+  p.attackTimer = Math.max(0, p.attackTimer - dt);
+  p.comboHitLock = Math.max(0, p.comboHitLock - dt);
+  if(p.comboIndex>0) {
+    p.comboInputWindow=Math.max(0,p.comboInputWindow-dt);
+    if(p.comboInputWindow===0) endPlayerCombo(p);
+    else if(p.comboQueued && p.comboHitLock===0) {
+      p.comboQueued=false;
+      tryAttack();
+    }
+  }
+  p.invulnTimer = Math.max(0, p.invulnTimer - dt);
+  p.hurtFlash = Math.max(0, p.hurtFlash - dt);
+
+  if (p.dashCooldown > 0) {
+    p.dashCooldown = Math.max(0, p.dashCooldown - dt);
+    if (p.dashCooldown === 0) p.dashCharges = FormulaEngine.playerMaxDashes();
+  }
+  p.dashCharges = Math.min(p.dashCharges, FormulaEngine.playerMaxDashes());
+
+  if (down && p.onGround) {
+    const standingOnPlatform = STATE.room.platforms.some(pl =>
+      Math.abs((p.y + p.h) - pl.y) < 4 && p.x + p.w > pl.x && p.x < pl.x + pl.w
+    );
+    if (standingOnPlatform) {
+      p.ignorePlatforms = .22;
+      p.y += 5;
+      p.onGround = false;
+    }
+  }
+
+  if (p.dashTimer > 0) {
+    p.dashTimer = Math.max(0, p.dashTimer - dt);
+    p.vx = p.facing * (CONFIG.dash.distance / Math.max(.05, CONFIG.dash.durationMs / 1000));
+    p.x += p.vx * dt;
+  } else {
+    if (axis !== 0) p.facing = axis;
+    p.vx = axis * CONFIG.player.moveSpeed;
+    p.x += p.vx * dt;
+
+    const previousY = p.y;
+    p.vy += CONFIG.player.gravity * dt;
+    p.y += p.vy * dt;
+    p.onGround = false;
+
+    if (p.vy >= 0 && p.ignorePlatforms <= 0) {
+      for (const pl of STATE.room.platforms) {
+        const wasAbove = previousY + p.h <= pl.y + 2;
+        const crossed = p.y + p.h >= pl.y;
+        const overlapsX = p.x + p.w > pl.x && p.x < pl.x + pl.w;
+        if (wasAbove && crossed && overlapsX) {
+          p.y = pl.y - p.h;
+          p.vy = 0;
+          p.onGround = true;
+          p.jumpCount = 0;
+        }
+      }
+    }
+
+    if (p.y + p.h >= STATE.room.floorY) {
+      p.y = STATE.room.floorY - p.h;
+      p.vy = 0;
+      p.onGround = true;
+      p.jumpCount = 0;
+    }
+  }
+
+  p.x = Math.max(0, Math.min(STATE.room.width - p.w, p.x));
+}
+
+function playerWithinEnemyRange(enemy, player) {
+  const enemyCx = enemy.x + enemy.w / 2;
+  const playerCx = player.x + player.w / 2;
+  const verticalDistance = Math.abs((enemy.y + enemy.h / 2) - (player.y + player.h / 2));
+  return Math.abs(playerCx - enemyCx) <= enemy.patrolRange &&
+         verticalDistance <= FIXED_RULES.enemy.verticalEngageRange;
+}
+
+function applyEnemyDamageToPlayer(damage, sourceId=null) {
+  const p=STATE.player;
+  if(!p || STATE.mode!=="playing")return false;
+  if(p.invulnTimer>0) return false;
+  if(p.firstHitImmunityAvailable) {
+    p.firstHitImmunityAvailable=false;
+    p.invulnTimer=FIXED_RULES.player.hitInvulnerabilityMs/1000;
+    burst(p.x+p.w/2,p.y+p.h/2,12,"#aaffdf");
+    showMessage("护盾：首次伤害免疫");
+    return false;
+  }
+  const absorbed=Math.min(Math.max(0,p.shield),damage);
+  p.shield=Math.max(0,p.shield-absorbed);
+  if(absorbed>0 && sourceId && FormulaEngine.shieldReflect()>0) {
+    const enemy=STATE.room.enemies.find(e=>e.id===sourceId);
+    if(enemy) {
+      const reflection=absorbed*FormulaEngine.shieldReflect();
+      interruptEnemy(enemy,reflection);
+      removeDeadEnemies();
+    }
+  }
+  const hpDamage=Math.max(0,damage-absorbed);
+  if(hpDamage>0)p.hp=Math.max(0,p.hp-hpDamage);
+  p.invulnTimer=FIXED_RULES.player.hitInvulnerabilityMs/1000;
+  p.hurtFlash=.18;
+  burst(p.x+p.w/2,p.y+p.h/2,9,"#ff777e");
+  showMessage(`受到 ${hpDamage.toFixed(1)} 生命伤害，护盾吸收 ${absorbed.toFixed(1)}`);
+  if(p.hp<=0)finishRun("gameover");
+  return true;
+}
+
+function resolveEnemyMelee(enemy) {
+  const hitbox={
+    x:enemy.dir>0 ? enemy.x+enemy.w-2 : enemy.x-enemy.meleeRange+2,
+    y:enemy.y+(enemy.h-FIXED_RULES.enemy.meleeHeight)/2,
+    w:enemy.meleeRange,
+    h:FIXED_RULES.enemy.meleeHeight
+  };
+  if(rectsOverlap(hitbox, STATE.player)) applyEnemyDamageToPlayer(enemy.attackDamage,enemy.id);
+}
+function performEnemyAttack(enemy) {
+  if (enemy.template.role==="ranged") {
+    emitProjectile(enemy);
+  } else {
+    emitMeleeEffect(enemy);
+    resolveEnemyMelee(enemy);
+  }
+}
+function resetEnemyPatrolBounds(enemy) {
+  enemy.left = Math.max(0, enemy.x - enemy.patrolRange);
+  enemy.right = Math.min(STATE.room.width - enemy.w, enemy.x + enemy.patrolRange);
+}
+
+function startEnemyChase(e, dx) {
+  e.state="chase";
+  e.chaseTimer=FIXED_RULES.enemy.chaseDurationMs/1000;
+  e.rangeTimer=0;
+  e.dir=dx>=0?1:-1;
+}
+function returnEnemyToPatrol(e) {
+  e.state="patrol";
+  e.stateTimer=0;
+  e.chaseTimer=0;
+  e.rangeTimer=0;
+  e.windupTimer=0;
+  e.attackTimer=0;
+  resetEnemyPatrolBounds(e);
+}
+function updateEnemies(dt) {
+  const p=STATE.player;
+  for (const e of STATE.room.enemies) {
+    e.bob+=dt*4;
+    e.flash=Math.max(0,e.flash-dt);
+    e.attackCooldown=Math.max(0,e.attackCooldown-dt);
+
+    if (e.state==="hitstun") {
+      e.hitStunTimer=Math.max(0,e.hitStunTimer-dt);
+      if (e.hitStunTimer<=0) returnEnemyToPatrol(e);
+      continue;
+    }
+
+    const enemyCx=e.x+e.w/2, playerCx=p.x+p.w/2;
+    const dx=playerCx-enemyCx;
+    const inRange=playerWithinEnemyRange(e,p);
+
+    if (e.state==="patrol") {
+      e.x+=e.dir*e.patrolSpeed*dt;
+      if (e.x<e.left) { e.x=e.left; e.dir=1; }
+      if (e.x>e.right) { e.x=e.right; e.dir=-1; }
+      if (inRange && e.attackCooldown<=0) {
+        startEnemyChase(e,dx);
+      }
+    } else if (e.state==="chase") {
+      e.chaseTimer=Math.max(0,e.chaseTimer-dt);
+      const followDistance=e.template.role==="ranged" ? Math.min(130,e.patrolRange*.62) : 22;
+      if (Math.abs(dx)>followDistance) {
+        e.dir=dx>=0?1:-1;
+        e.x+=e.dir*e.chaseSpeed*dt;
+        e.x=Math.max(0,Math.min(STATE.room.width-e.w,e.x));
+      } else {
+        e.dir=dx>=0?1:-1;
+      }
+      const remainsInRange=playerWithinEnemyRange(e,p);
+      if (remainsInRange) e.rangeTimer+=dt;
+      else e.rangeTimer=0;
+      if (e.rangeTimer>=(FIXED_RULES.enemy.stayInRangeToWindupMs/1000)*(e.template.triggerRate || 1)) {
+        e.state="windup";
+        e.windupTimer=(FIXED_RULES.enemy.windupMs/1000)*e.template.windupRate;
+      } else if (e.chaseTimer<=0) {
+        returnEnemyToPatrol(e);
+      }
+    } else if (e.state==="windup") {
+      // 闪红光持续 1 秒。受击后 interruptEnemy 会立即打断当前动作。
+      // 精英同样会提前显示预警，射击方向于蓄力结束时锁定。
+      e.dir=dx>=0?1:-1;
+      e.windupTimer=Math.max(0,e.windupTimer-dt);
+      if (e.windupTimer<=0) {
+        e.state="attack";
+        e.attackTimer=FIXED_RULES.enemy.attackActiveMs/1000;
+        performEnemyAttack(e);
+        if (STATE.mode!=="playing") return;
+      }
+    } else if (e.state==="attack") {
+      e.attackTimer=Math.max(0,e.attackTimer-dt);
+      if (e.attackTimer<=0) {
+        // 已存在的特效对象会在 TTL 结束时自动被池子回收。
+        // 攻击完成立刻回巡逻，玩家还在范围时下一帧重新追击。
+        returnEnemyToPatrol(e);
+      }
+    } else if (e.state==="recovery") {
+      // 向下兼容旧存档残留的状态。
+      returnEnemyToPatrol(e);
+    }
+    e.y=STATE.room.floorY-e.h;
+  }
+}
+
+/* ============================================================
+   房间循环 / 游戏更新模块
+   ============================================================ */
+function update(dt) {
+  if (STATE.mode !== "playing") return;
+  updatePlayer(dt);
+  updateEnemies(dt);
+  if (STATE.mode !== "playing") { updateHud(); return; }
+  updateCombatPools(dt);
+  if (STATE.mode !== "playing") { updateHud(); return; }
+  updatePlayerWeapons(dt);
+  if (STATE.mode !== "playing") { updateHud(); return; }
+
+  for (const particle of STATE.particles) {
+    particle.life -= dt;
+    particle.x += particle.vx * dt;
+    particle.y += particle.vy * dt;
+    particle.vy += 400 * dt;
+  }
+  STATE.particles = STATE.particles.filter(p => p.life > 0);
+  STATE.messageTimer = Math.max(0, STATE.messageTimer - dt);
+
+  let room=STATE.room;
+  if (room.waveStatus==="active" && room.enemies.length===0) {
+    clearCombatPools();
+    if (room.waveIndex < POINTS_RULES.waveCount) {
+      room.waveStatus="incoming";
+      room.waveTransition=POINTS_RULES.waveTransitionSeconds;
+      showMessage(`第 ${room.waveIndex} 波完成 · 下一波准备中`);
+    } else {
+      prepareRoomReward();
+      updateHud();
+      return;
+    }
+  }
+
+  if (room.waveStatus==="incoming") {
+    room.waveTransition=Math.max(0,room.waveTransition-dt);
+    if (room.waveTransition<=0) spawnWave(room,room.waveIndex+1);
+  }
+
+  // 不允许在第一波 / 第二波清空时提前过关。
+  if (room.waveStatus==="cleared") {
+    if (STATE.player.x+STATE.player.w>=room.doorX) {
+      enterNextRoom();
+      room=STATE.room;
+    }
+  }
+
+  const p=STATE.player;
+  const targetCam=Math.max(0,Math.min(room.width-W,p.x-W*.43));
+  STATE.cameraX+=(targetCam-STATE.cameraX)*Math.min(1,dt*7);
+  updateHud();
+  if (debugPanel.classList.contains("open")) {
+    STATE.debugRefreshTimer=(STATE.debugRefreshTimer||0)+dt;
+    if (STATE.debugRefreshTimer>=.3) {
+      STATE.debugRefreshTimer=0;
+      refreshArchitectureStatus();
+    }
+  }
+}
+
+function showMessage(text) {
+  STATE.message = text;
+  STATE.messageTimer = 1.25;
+}
+
+function burst(x, y, count, color) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = randomBetween(45, 190);
+    STATE.particles.push({
+      x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed,
+      life: randomBetween(.18,.42), maxLife:.42, color,
+      size: randomBetween(2,4)
+    });
+  }
+}
+
+/* ============================================================
+   绘制模块：背景、地图、敌人、角色、HUD
+   ============================================================ */
+const palettes = [
+  ["#172b43","#25445b","#7de0c3"],
+  ["#25213e","#3c315d","#b5a1ff"],
+  ["#142d35","#1c4b4c","#8be0c7"],
+  ["#332438","#59404f","#ffc18d"]
+];
+
+function drawBackground(time) {
+  const room = STATE.room;
+  const palette = palettes[room ? room.palette : 0];
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0, palette[0]);
+  grad.addColorStop(1, "#0b111d");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0,0,W,H);
+
+  // distant lights
+  for (let i=0;i<34;i++) {
+    const x = ((i*137 - STATE.cameraX*.16) % (W+80) + (W+80))%(W+80);
+    const y = 45 + ((i*71)%230);
+    ctx.fillStyle = `rgba(185,218,255,${.08 + .06*Math.sin(time*.001+i)})`;
+    ctx.fillRect(x,y,2,2);
+  }
+  // parallax architecture
+  for (let i=0;i<12;i++) {
+    const x = ((i*170 - STATE.cameraX*.28) % (W+190) + (W+190))%(W+190)-70;
+    const height = 90 + (i*47)%150;
+    ctx.fillStyle = "rgba(5,11,22,.25)";
+    ctx.fillRect(x, 350-height, 82, height);
+    ctx.fillStyle = "rgba(151,190,221,.08)";
+    for (let wy=0;wy<4;wy++) for (let wx=0;wx<3;wx++) {
+      ctx.fillRect(x+12+wx*21, 365-height+wy*25, 7, 10);
+    }
+  }
+}
+
+function drawRoom() {
+  const room = STATE.room;
+  const cam = STATE.cameraX;
+  const floorY = room.floorY;
+
+  // floor
+  ctx.fillStyle = "#1b2b3b";
+  ctx.fillRect(-cam, floorY, room.width, H-floorY);
+  ctx.fillStyle = "#426477";
+  ctx.fillRect(-cam, floorY, room.width, 5);
+  ctx.fillStyle = "rgba(126,224,195,.12)";
+  for (let x=0;x<room.width;x+=46) {
+    ctx.fillRect(x-cam, floorY+18, 23, 2);
+  }
+
+  // platforms
+  for (const pl of room.platforms) {
+    const x = pl.x-cam;
+    ctx.fillStyle = "#30485d";
+    ctx.fillRect(x,pl.y,pl.w,pl.h);
+    ctx.fillStyle = "#78b6aa";
+    ctx.fillRect(x,pl.y,pl.w,4);
+    ctx.fillStyle = "rgba(4,10,18,.25)";
+    ctx.fillRect(x+8,pl.y+pl.h,pl.w-16,5);
+  }
+
+  // door
+  const doorX = room.doorX-cam;
+  const cleared = room.waveStatus === "cleared";
+  ctx.fillStyle = cleared ? "rgba(125,224,195,.18)" : "rgba(10,15,25,.65)";
+  ctx.fillRect(doorX-22, floorY-104, 44, 104);
+  ctx.strokeStyle = cleared ? "#7de0c3" : "#68768c";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(doorX-22, floorY-104, 44, 104);
+  ctx.fillStyle = cleared ? "#a4ffe8" : "#a0aabe";
+  ctx.font = "11px sans-serif";
+  ctx.textAlign = "center";
+  const isFinalRoom = STATE.roomNumber >= FIXED_RULES.progression.totalRooms;
+  ctx.fillText(cleared ? (isFinalRoom ? "CLEAR" : "NEXT") : "LOCKED", doorX, floorY-113);
+  if (!cleared && STATE.player.x > room.doorX-230) {
+    ctx.fillStyle = "rgba(7,12,22,.8)";
+    ctx.fillRect(doorX-105, floorY-145, 166, 25);
+    ctx.fillStyle = "#d7e2f5";
+    ctx.fillText(`完成三波战斗以解锁 (${room.waveIndex}/3)`, doorX-22, floorY-128);
+  }
+}
+
+function drawEnemy(e) {
+  const x=e.x-STATE.cameraX, y=e.y+Math.sin(e.bob)*1.6;
+  const isWindup=e.state==="windup";
+  const isHit=e.state==="hitstun" || e.flash>0;
+  const redPulse=isWindup && Math.floor(performance.now()/105)%2===0;
+
+  ctx.save();
+  ctx.translate(x+e.w/2,y+e.h/2);
+  ctx.scale(e.dir,1);
+  if(isWindup) {
+    ctx.shadowBlur=redPulse?26:11;
+    ctx.shadowColor="#ff354b";
+    ctx.fillStyle=redPulse?"#ff4556":"#a34052";
+  } else if(isHit) {
+    ctx.shadowBlur=12;ctx.shadowColor="#fff0d2";ctx.fillStyle="#fff0d2";
+  } else {
+    ctx.shadowBlur=e.typeId==="elite"?12:0;
+    ctx.shadowColor=e.template.color;ctx.fillStyle=e.template.color;
+  }
+  ctx.beginPath();ctx.roundRect(-e.w/2,-e.h/2+5,e.w,e.h-5,9);ctx.fill();
+  ctx.shadowBlur=0;
+  // 近战：红色近战兵；远程：背上携带发射器；肉盾：装甲；精英：发光冠饰。
+  if(e.typeId==="melee") {
+    ctx.fillStyle="#61394f";ctx.fillRect(-e.w/2+5,-e.h/2+13,e.w-10,5);
+    ctx.fillStyle="#eed7c3";ctx.fillRect(e.w/2-2,-e.h/2+12,7,18);
+  } else if(e.typeId==="ranged") {
+    ctx.fillStyle="#5b619e";ctx.fillRect(-e.w/2-6,-e.h/2+10,9,19);
+    ctx.fillStyle="#ecf5ff";ctx.fillRect(e.w/2-3,-e.h/2+17,16,7);
+    ctx.fillStyle="#90f0f7";ctx.fillRect(e.w/2+8,-e.h/2+18,5,5);
+  } else if(e.typeId==="tank") {
+    ctx.fillStyle="#a47a48";ctx.fillRect(-e.w/2+5,-e.h/2+10,e.w-10,11);
+    ctx.fillStyle="#fae9bc";ctx.fillRect(-e.w/2+7,-e.h/2+7,8,5);
+    ctx.fillRect(e.w/2-15,-e.h/2+7,8,5);
+    ctx.fillStyle="#8e633b";ctx.fillRect(-e.w/2+8,5,e.w-16,7);
+  } else if(e.typeId==="elite") {
+    ctx.fillStyle="#ffe5a8";
+    ctx.beginPath();ctx.moveTo(-13,-e.h/2+7);ctx.lineTo(-8,-e.h/2-8);
+    ctx.lineTo(0,-e.h/2+3);ctx.lineTo(8,-e.h/2-8);
+    ctx.lineTo(14,-e.h/2+7);ctx.closePath();ctx.fill();
+    ctx.fillStyle="#7a3ba2";ctx.fillRect(-e.w/2+6,-e.h/2+15,e.w-12,8);
+  }
+  ctx.fillStyle="#19253a";ctx.fillRect(4,-5,5,4);ctx.fillRect(13,-5,5,4);
+  ctx.restore();
+
+  if (isWindup) {
+    ctx.strokeStyle=`rgba(255,65,80,${.55+.35*Math.sin(performance.now()/70)})`;
+    ctx.lineWidth=2;ctx.beginPath();
+    ctx.ellipse(x+e.w/2,y+e.h/2,e.w*.74,e.h*.76,0,0,Math.PI*2);ctx.stroke();
+  }
+  const labelColor=isWindup?"#ff858d":e.state==="hitstun"?"#fff0d2":"#ddeaff";
+  ctx.fillStyle=labelColor;
+  ctx.textAlign="center";ctx.font="bold 11px sans-serif";
+  ctx.fillText(e.template.name + (isWindup?" · 红光前摇":e.state==="chase"?" · 追击":e.state==="hitstun"?" · 受击":""), x+e.w/2,y-20);
+  const barW=Math.max(45,e.w+12),bx=x+(e.w-barW)/2,by=y-12;
+  ctx.fillStyle="rgba(0,0,0,.64)";ctx.fillRect(bx,by,barW,5);
+  ctx.fillStyle=e.typeId==="elite"?"#d995ff":e.typeId==="tank"?"#f6d18e":"#ff9993";
+  ctx.fillRect(bx,by,barW*Math.max(0,e.hp/e.maxHp),5);
+}
+
+function drawPlayer(time) {
+  const p=STATE.player;
+  if (!p) return;
+  const x=p.x-STATE.cameraX, y=p.y;
+  const moving=Math.abs(p.vx)>10 && p.dashTimer<=0;
+  const step=moving ? Math.sin(time*.018)*4 : Math.sin(time*.004)*1.5;
+  const blink=p.invulnTimer>0 && Math.floor(time/65)%2===0;
+  if (blink) return;
+
+  ctx.save();
+  ctx.translate(x+p.w/2,y+p.h/2);
+  if (p.facing<0) ctx.scale(-1,1);
+
+  // dash trail
+  if (p.dashTimer>0) {
+    ctx.fillStyle="rgba(125,224,195,.18)";
+    ctx.fillRect(-p.w/2-28,-p.h/2+7,p.w+24,p.h-10);
+  }
+  // legs
+  ctx.fillStyle="#24354d";
+  ctx.fillRect(-10,11+step,8,15);
+  ctx.fillRect(3,11-step,8,15);
+  // body
+  ctx.fillStyle="#7de0c3";
+  ctx.fillRect(-12,-9,24,24);
+  ctx.fillStyle="#dce9f5";
+  ctx.fillRect(-10,-21,20,15);
+  // visor
+  ctx.fillStyle="#263b53";
+  ctx.fillRect(1,-17,10,5);
+  // scarf
+  ctx.fillStyle="#8cb8ff";
+  ctx.fillRect(-13,-5,7,13);
+  // arms
+  ctx.fillStyle="#dce9f5";
+  ctx.fillRect(9,-4,8,7);
+  ctx.restore();
+
+  if(p.shield>0 || p.firstHitImmunityAvailable) {
+    ctx.save();ctx.strokeStyle=p.firstHitImmunityAvailable?"#bcf5ff":"#88e6da";
+    ctx.globalAlpha=.72;ctx.lineWidth=2.3;
+    ctx.beginPath();ctx.ellipse(x+p.w/2,y+p.h/2,p.w*.83,p.h*.78,0,0,Math.PI*2);ctx.stroke();ctx.restore();
+  }
+  // 四段普攻分别使用不同方向 / 强度的刀光，便于辨认连击阶段。
+  if (p.attackTimer>0) {
+    const alpha=Math.min(1,p.attackTimer/(CONFIG.attack.activeMs/1000));
+    const step=p.attackStep||1;
+    const angles=[[-1.3,.2],[-.15,1.25],[-1.08,.8],[-1.5,1.5]];
+    const colors=["255,226,164","160,232,250","255,187,148","255,238,183"];
+    const sx=p.facing>0 ? x+p.w : x-FormulaEngine.meleeRange();
+    const cx=p.facing>0 ? sx+4 : sx+FormulaEngine.meleeRange()-4;
+    const radius=FormulaEngine.meleeRange()*(step===4?.82:.63);
+    const a=angles[Math.min(step,4)-1];
+    ctx.save();
+    ctx.strokeStyle=`rgba(${colors[Math.min(step,4)-1]},${alpha})`;
+    ctx.lineWidth=step===4?8:5;
+    ctx.shadowColor=ctx.strokeStyle;
+    ctx.shadowBlur=step===4?21:9;
+    ctx.beginPath();
+    if(p.facing>0) ctx.arc(cx,y+p.h/2,radius,a[0],a[1]);
+    else ctx.arc(cx,y+p.h/2,radius,Math.PI-a[1],Math.PI-a[0]);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawParticles() {
+  for (const p of STATE.particles) {
+    ctx.globalAlpha=Math.max(0,p.life/p.maxLife);
+    ctx.fillStyle=p.color;
+    ctx.fillRect(p.x-STATE.cameraX,p.y,p.size,p.size);
+  }
+  ctx.globalAlpha=1;
+}
+
+function drawWorld(time) {
+  drawBackground(time);
+  if (!STATE.room) return;
+  drawRoom();
+  for (const e of STATE.room.enemies) drawEnemy(e);
+  drawCombatPools();
+  drawPlayerWeapons();
+  drawPlayer(time);
+  drawParticles();
+
+  if (STATE.messageTimer>0) {
+    ctx.globalAlpha=Math.min(1,STATE.messageTimer*2);
+    ctx.fillStyle="rgba(5,10,18,.72)";
+    ctx.fillRect(W/2-105,72,210,34);
+    ctx.fillStyle="#e8f6f4";
+    ctx.font="bold 14px sans-serif";
+    ctx.textAlign="center";
+    ctx.fillText(STATE.message,W/2,94);
+    ctx.globalAlpha=1;
+  }
+}
+
+function drawMenu(time) {
+  drawBackground(time);
+  // decorative floor
+  ctx.fillStyle="#1b2b3b"; ctx.fillRect(0,455,W,105);
+  ctx.fillStyle="#426477"; ctx.fillRect(0,455,W,5);
+  // idle character, deliberately simple placeholder
+  const bob=Math.sin(time*.003)*4;
+  const x=250, y=390+bob;
+  ctx.fillStyle="#24354d"; ctx.fillRect(x-10,y+12,8,24); ctx.fillRect(x+3,y+12,8,24);
+  ctx.fillStyle="#7de0c3"; ctx.fillRect(x-13,y-10,26,27);
+  ctx.fillStyle="#dce9f5"; ctx.fillRect(x-11,y-27,22,17);
+  ctx.fillStyle="#263b53"; ctx.fillRect(x+1,y-21,11,6);
+  ctx.fillStyle="#8cb8ff"; ctx.fillRect(x-15,y-7,7,14);
+  ctx.fillStyle="rgba(125,224,195,.22)";
+  ctx.beginPath(); ctx.ellipse(x,y+43,34,7,0,0,Math.PI*2); ctx.fill();
+  // subtle moving motes
+  for(let i=0;i<24;i++){
+    const px=(i*83 + time*.025)%(W+20)-10;
+    const py=130+(i*47)%280+Math.sin(time*.001+i)*8;
+    ctx.fillStyle="rgba(174,221,235,.28)";
+    ctx.fillRect(px,py,2,2);
+  }
+}
+
+function updateHud() {
+  if (!STATE.player || !STATE.room) return;
+  const room=STATE.room;
+  const wavePlan=room.pointsPlan.waves[room.waveIndex-1];
+  document.getElementById("stageLabel").textContent =
+    `${getStageNumber()} / ${FIXED_RULES.progression.totalStages}`;
+  document.getElementById("roomLabel").textContent =
+    `${getRoomInStage()} / ${FIXED_RULES.progression.roomsPerStage}`;
+  document.getElementById("waveLabel").textContent=`${room.waveIndex} / ${POINTS_RULES.waveCount}`;
+  document.getElementById("wavePointsLabel").textContent=
+    wavePlan ? `${wavePlan.spent} / ${wavePlan.budget}` : "—";
+  document.getElementById("enemyLabel").textContent = room.enemies.length;
+  document.getElementById("roomState").textContent =
+    room.waveStatus==="incoming" ? "下一波准备" :
+    room.waveStatus==="cleared" ?
+      (STATE.roomNumber===FIXED_RULES.progression.totalRooms ? "最终房间奖励已领取" : "出口已解锁") :
+    room.waveStatus==="reward" ? "卡牌三选一" : "战斗中";
+  document.getElementById("playerHpLabel").textContent =
+    `${STATE.player.hp.toFixed(0)} / ${STATE.player.maxHp.toFixed(0)}`;
+  document.getElementById("playerShieldLabel").textContent=STATE.player.shield.toFixed(1)+
+    (STATE.player.firstHitImmunityAvailable?" · 首击免疫":"");
+  document.getElementById("cardCountLabel").textContent=CardSystem.rewardCount;
+  document.getElementById("rerollHudLabel").textContent=`${CardSystem.rerollsRemaining} / ${REROLL_RULES.usesPerStage}`;
+  document.getElementById("dashLabel").textContent = `${STATE.player.dashCharges} / ${FormulaEngine.playerMaxDashes()}` +
+    (STATE.player.dashCooldown>0 ? ` · ${STATE.player.dashCooldown.toFixed(1)}s` : "");
+  const p=STATE.player;
+  document.getElementById("attackLabel").textContent = p.attackCooldown>0 ?
+    `连击完成 · CD ${p.attackCooldown.toFixed(1)}s` :
+    p.comboIndex>0 ? `连击 ${p.comboIndex}/4 · 继续按 J` : "连击就绪";
+  document.getElementById("lightLanceLabel").textContent = p.lightLanceCooldown>0 ?
+    `I · ${p.lightLanceCooldown.toFixed(1)}s` : "I · 就绪";
+}
+
+/* ============================================================
+   参数编辑台模块
+   参数描述与配置路径分离，后续新增数据只需扩展配置与参数定义。
+   ============================================================ */
+const PARAMS = [
+  {group:"可调参数 · P", path:"dash.maxCharges", label:"最大闪避次数", min:1,max:4,step:1},
+  {group:"可调参数 · P", path:"attack.cooldownMs", label:"普攻冷却时间 (ms)", min:100,max:3000,step:50},
+  {group:"可调参数 · P", path:"attack.range", label:"普攻攻击范围", min:25,max:180,step:5}
+];
+
+function getPath(obj,path) { return path.split(".").reduce((o,k)=>o[k],obj); }
+function setPath(obj,path,value) {
+  const parts=path.split(".");
+  const last=parts.pop();
+  const parent=parts.reduce((o,k)=>o[k],obj);
+  parent[last]=value;
+}
+function persistConfig() {
+  try { localStorage.setItem("boundaryEchoConfigV06", JSON.stringify(CONFIG)); } catch (_) {}
+}
+function buildParamEditor() {
+  const root=document.getElementById("paramControls");
+  root.innerHTML="";
+  let currentGroup="";
+  for (const item of PARAMS) {
+    if (item.group!==currentGroup) {
+      currentGroup=item.group;
+      const heading=document.createElement("div");
+      heading.className="param-group";
+      heading.textContent=currentGroup;
+      root.appendChild(heading);
+    }
+    const wrap=document.createElement("div");
+    wrap.className="param";
+    const top=document.createElement("div");
+    top.className="param-top";
+    const label=document.createElement("label");
+    label.textContent=item.label;
+    const output=document.createElement("output");
+    output.textContent=getPath(CONFIG,item.path);
+    top.append(label,output);
+    const input=document.createElement("input");
+    input.type="range"; input.min=item.min; input.max=item.max; input.step=item.step;
+    input.value=getPath(CONFIG,item.path);
+    input.addEventListener("input",()=>{
+      const value=Number(input.value);
+      setPath(CONFIG,item.path,value);
+      output.textContent=value;
+      if (item.path==="dash.maxCharges" && STATE.player) {
+        STATE.player.dashCharges=Math.min(STATE.player.dashCharges,FormulaEngine.playerMaxDashes());
+      }
+      persistConfig();
+      updateHud();
+      refreshArchitectureStatus();
+    });
+    wrap.append(top,input);
+    root.appendChild(wrap);
+  }
+  refreshArchitectureStatus();
+}
+function refreshArchitectureStatus() {
+  const formulaStatus=document.getElementById("formulaStatus");
+  const modifierStatus=document.getElementById("modifierStatus");
+  const waveDebugStatus=document.getElementById("waveDebugStatus");
+  if (!formulaStatus || !modifierStatus || !waveDebugStatus) return;
+
+  const attack=FormulaEngine.playerAttackDamage();
+  const melee=FormulaEngine.enemyBaseHp({roomNumber:STATE.roomNumber||1,typeId:"melee"});
+  const patrol=FormulaEngine.enemyPatrol({roomNumber:STATE.roomNumber||1});
+  const elitePatrol=FormulaEngine.enemyPatrol({roomNumber:STATE.roomNumber||1,typeId:"elite"});
+  const hpValues=["melee","ranged","tank","elite"]
+    .map(id=>{
+      const hp=FormulaEngine.enemyBaseHp({roomNumber:STATE.roomNumber||1,typeId:id});
+      return `${ENEMY_TYPES[id].name} ${hp.baseHP} × ${hp.hpRate.toFixed(2)} × ${hp.growth.toFixed(2)}³ = <b>${hp.final}</b>`;
+    });
+  formulaStatus.innerHTML =
+    `玩家普攻单段：<b>${attack.final.toFixed(2)}</b>（基础 ${FIXED_RULES.player.baseAttackDamage} + 卡牌伤害加算），完整四段合计 <b>${(attack.final*FIXED_RULES.combo.damageRates.reduce((a,b)=>a+b,0)).toFixed(2)}</b>（全部命中时）<br>` +
+    `四段连招：最短段间隔 <b>${(FIXED_RULES.combo.minIntervalMs/(1+CardSystem.sum("attackSpeed"))).toFixed(0)}ms</b>，每段输入窗口 ${FIXED_RULES.combo.inputWindowMs}ms，完整连招后 CD <b>${FormulaEngine.meleeCooldownMs().toFixed(0)}ms</b> · 近战范围 <b>${FormulaEngine.meleeRange().toFixed(1)}</b><br>`+
+    `阶段 ${melee.stage}：<b>G = ${melee.growth.toFixed(2)}</b> · HP = BaseHP × HpRate × G³<br>`+
+    `怪物独立血量：<br>${hpValues.join("<br>")}<br>`+
+    `精英巡逻/追击速度：<b>${elitePatrol.speed.toFixed(1)} / ${elitePatrol.chaseSpeed.toFixed(1)}</b> · 巡逻范围 <b>${elitePatrol.range.toFixed(1)}</b><br>`+
+    `敌方固定伤害：<b>近战 ${ENEMY_TYPES.melee.attackDamage} / 远程 ${ENEMY_TYPES.ranged.attackDamage} / 肉盾 ${ENEMY_TYPES.tank.attackDamage} / 精英 ${ENEMY_TYPES.elite.attackDamage}</b>（不随阶段成长）<br>`+
+    `玩家生命：<b>${FormulaEngine.playerMaxHp()}</b> · 闪避上限：<b>${FormulaEngine.playerMaxDashes()}</b> · 闪避CD：<b>${FormulaEngine.dashCooldownMs().toFixed(0)}ms</b><br>`+
+    `远程：<b>${CardSystem.has("L07")?"已解锁":"未解锁"}</b>，索敌 ${FormulaEngine.autoRange().toFixed(1)}，弹伤 ${FormulaEngine.autoBulletDamage().toFixed(2)}，弹数 ${FormulaEngine.autoBulletCount()}<br>`+
+    `剑气：<b>${CardSystem.has("L08")?"已解锁":"未解锁"}</b>，剑气伤害 ${FormulaEngine.swordDamage().toFixed(2)}，距离 ${FormulaEngine.swordDistance().toFixed(1)}，数量 ${FormulaEngine.swordCount()}<br>`+
+    `光枪 I：每侧 <b>${FormulaEngine.lightLanceCountPerSide()}</b> 支，共 ${FormulaEngine.lightLanceCountPerSide()*2} 支，单支伤害 <b>${FormulaEngine.lightLanceDamage().toFixed(1)}</b>，距离 ${FormulaEngine.lightLanceDistance().toFixed(0)}px，速度 ${FormulaEngine.lightLanceSpeed().toFixed(0)}px/s，CD ${(FormulaEngine.lightLanceCooldownMs()/1000).toFixed(2)}s；当前冷却 ${(STATE.player?.lightLanceCooldown||0).toFixed(1)}s<br>`+
+    `压力占位输出：巡逻速度 ${patrol.speed.toFixed(0)} / 范围 ${patrol.range.toFixed(0)} · 当前压力 ${patrol.pressure}<br>`+
+    `对象池：敌方特效 ${AttackEffects.active.length} / 子弹 ${EnemyProjectiles.active.length}，玩家子弹 ${PlayerProjectiles.active.length} / 剑气 ${SwordWaves.active.length} / 光枪 ${LightLances.active.length}`;
+
+  const currentRoom=STATE.room;
+  if(currentRoom) {
+    const p=currentRoom.pointsPlan;
+    const rows=p.waves.map(w=>`第 ${w.waveIndex} 波：${w.spent}/${w.budget} 点，`+
+      `近战 ${w.counts.melee} / 远程 ${w.counts.ranged} / 肉盾 ${w.counts.tank} / 精英 ${w.counts.elite}`+
+      (w.waveIndex===currentRoom.waveIndex?" <b>← 当前</b>":""));
+    waveDebugStatus.innerHTML = `<b>阶段 ${p.stage} · 房间总预算 ${p.budget}</b><br>`+rows.join("<br>")+
+      `<br>当前状态：${currentRoom.waveStatus} · 剩余敌人 ${currentRoom.enemies.length}`;
+  } else waveDebugStatus.textContent="开始游戏后显示每波生成计划。";
+
+  modifierStatus.innerHTML=
+    `Base ${FIXED_RULES.player.baseAttackDamage} → 通用伤害加算 +${(CardSystem.sum("damage")*100).toFixed(1)}% → Final ${attack.final.toFixed(2)}<br>`+
+    `Base ${FIXED_RULES.player.maxHp} → 生命加算 +${(CardSystem.sum("maxHp")*100).toFixed(1)}% → Final ${FormulaEngine.playerMaxHp()}<br>`+
+    `护盾：${STATE.player?STATE.player.shield.toFixed(1):0}；最大护盾 ${FormulaEngine.shieldMax().toFixed(1)}，反伤 ${(FormulaEngine.shieldReflect()*100).toFixed(1)}%`;
+
+  const cardStatus=document.getElementById("cardDebugStatus");
+  cardStatus.innerHTML=`已获得 ${CardSystem.rewardCount} 张：`+
+    (CARD_DEFS.filter(c=>CardSystem.has(c.id)).map(c=>`${c.name} ×${CardSystem.count(c.id)}`).join("、")||"暂无")+
+    `<br>当前满足前置的二级牌：${CARD_DEFS.filter(c=>c.tier===2&&CardSystem.eligible(c)).map(c=>c.name).join(" / ")||"暂无"}`;
+}
+buildParamEditor();
+
+document.getElementById("exportButton").addEventListener("click",()=>{
+  const blob=new Blob([JSON.stringify(CONFIG,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download="boundary-echo-config-v0.14.json"; a.click();
+  URL.revokeObjectURL(url);
+});
+document.getElementById("importButton").addEventListener("click",()=>document.getElementById("importFile").click());
+document.getElementById("importFile").addEventListener("change",async(e)=>{
+  const file=e.target.files && e.target.files[0]; if(!file) return;
+  try {
+    const data=JSON.parse(await file.text());
+    const clean=clone(DEFAULT_CONFIG);
+    for (const param of PARAMS) {
+      const candidate=param.path.split(".").reduce((o,key)=>o&&o[key],data);
+      if (typeof candidate==="number" && Number.isFinite(candidate)) {
+        const snapped=Math.round(Math.max(param.min,Math.min(param.max,candidate))/param.step)*param.step;
+        setPath(clean,param.path,Math.max(param.min,Math.min(param.max,snapped)));
+      }
+    }
+    CONFIG=clean;
+    persistConfig(); buildParamEditor(); updateHud();
+    showMessage("配置导入成功");
+  } catch(err) { alert("配置文件无法读取，请检查 JSON 格式。"); }
+  e.target.value="";
+});
+document.getElementById("resetParams").addEventListener("click",()=>{
+  CONFIG=clone(DEFAULT_CONFIG);
+  try {
+    localStorage.removeItem("boundaryEchoConfigV06");
+    localStorage.removeItem("boundaryEchoConfigV04");
+  } catch(_){}
+  buildParamEditor();
+  if (STATE.player) {
+    STATE.player.dashCharges=FormulaEngine.playerMaxDashes();
+  }
+  updateHud(); showMessage("已恢复默认参数");
+});
+
+/* ============================================================
+   输入与界面模块
+   ============================================================ */
+function togglePause() {
+  if (STATE.mode==="playing") {
+    STATE.mode="paused"; pauseScreen.classList.add("show"); STATE.keys.clear();
+  } else if (STATE.mode==="paused") {
+    STATE.mode="playing"; pauseScreen.classList.remove("show");
+  }
+}
+window.addEventListener("keydown",(e)=>{
+  const key=e.key.toLowerCase();
+  if ([" ","arrowup","arrowdown","arrowleft","arrowright"].includes(key)) e.preventDefault();
+  if (key==="f1" && STATE.mode!=="reward") {
+    e.preventDefault(); debugPanel.classList.toggle("open");
+    if (debugPanel.classList.contains("open")) refreshArchitectureStatus();
+    return;
+  }
+  if (key==="escape") {
+    if (STATE.mode==="playing" || STATE.mode==="paused") togglePause();
+    return;
+  }
+  if (STATE.mode==="menu" && key==="enter") { startGame(); return; }
+  if (STATE.mode!=="playing") return;
+  STATE.keys.add(key);
+  if (key===CONFIG.controls.jump) tryJump();
+  if (key===CONFIG.controls.dash) tryDash();
+  if (key===CONFIG.controls.attack && !e.repeat) tryAttack();
+  if (key===CONFIG.controls.lightLance && !e.repeat) tryLightLance();
+});
+window.addEventListener("keyup",(e)=>STATE.keys.delete(e.key.toLowerCase()));
+window.addEventListener("blur",()=>STATE.keys.clear());
+
+document.getElementById("debugNextStage").addEventListener("click",()=>{
+  if(STATE.mode!=="playing")return;
+  const stage=getStageNumber();
+  if(stage>=FIXED_RULES.progression.totalStages) { showMessage("已到最后阶段"); return; }
+  clearCombatPools();
+  STATE.roomNumber=stage*FIXED_RULES.progression.roomsPerStage+1;
+  STATE.room=generateRoom(STATE.roomNumber);
+  const p=STATE.player;
+  p.x=105;p.y=STATE.room.floorY-p.h;p.vx=0;p.vy=0;p.onGround=true;p.jumpCount=0;
+  refreshRoomDefenses();
+  STATE.cameraX=0;
+  CardSystem.resetStageRerolls();
+  debugPanel.classList.remove("open");
+  showMessage(`测试：进入阶段 ${getStageNumber()}（第 ${STATE.roomNumber} 房），刷新次数恢复`);
+  updateHud();
+});
+document.getElementById("debugClearWave").addEventListener("click",()=>{
+  if(STATE.mode!=="playing" || !STATE.room || STATE.room.waveStatus!=="active")return;
+  STATE.room.enemies.length=0;
+  clearCombatPools();
+  debugPanel.classList.remove("open");
+  showMessage("测试工具：当前波已清空");
+});
+document.getElementById("rerollButton").addEventListener("click",rerollReward);
+document.getElementById("startButton").addEventListener("click",startGame);
+document.getElementById("resumeButton").addEventListener("click",togglePause);
+document.getElementById("restartButton").addEventListener("click",startGame);
+document.getElementById("victoryRestartButton").addEventListener("click",startGame);
+document.getElementById("gameOverRestartButton").addEventListener("click",startGame);
+document.getElementById("closeDebug").addEventListener("click",()=>debugPanel.classList.remove("open"));
+
+/* ============================================================
+   主循环
+   ============================================================ */
+function frame(time) {
+  const dt=Math.min(.033,Math.max(0,(time-STATE.lastTime)/1000 || 0));
+  STATE.lastTime=time;
+  if (STATE.mode==="menu") {
+    STATE.menuTime=time;
+    drawMenu(time);
+  } else if (STATE.mode==="playing") {
+    update(dt);
+    drawWorld(time);
+  } else if (STATE.mode==="paused" || STATE.mode==="victory" || STATE.mode==="gameover" || STATE.mode==="reward") {
+    drawWorld(time);
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
